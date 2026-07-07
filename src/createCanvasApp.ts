@@ -7,6 +7,7 @@ export type CanvasAppOptions = {
   autoStart?: boolean;
   clearEachFrame?: boolean;
   pauseWhenHidden?: boolean;
+  pauseWhenOffscreen?: boolean;
 };
 
 export type CanvasApp = {
@@ -40,6 +41,7 @@ export function createCanvasApp(
   const autoStart = options.autoStart ?? false;
   const clearEachFrame = options.clearEachFrame ?? false;
   const pauseWhenHidden = options.pauseWhenHidden ?? false;
+  const pauseWhenOffscreen = options.pauseWhenOffscreen ?? false;
   const draw = new CanvasDrawContext(ctx);
   const mouse = new MouseInput(canvas);
 
@@ -47,6 +49,8 @@ export function createCanvasApp(
   let animationFrameId: number | null = null;
   let running = false;
   let pausedByVisibility = false;
+  let pausedByIntersection = false;
+  let intersectionObserver: IntersectionObserver | null = null;
   let destroyed = false;
   let startTimeMs = 0;
   let lastTimeMs = 0;
@@ -99,24 +103,57 @@ export function createCanvasApp(
     animationFrameId = requestAnimationFrame(tick);
   };
 
-  const handleVisibilityChange = (): void => {
-    if (document.visibilityState === "hidden") {
-      if (running && animationFrameId !== null) {
-        cancelAnimationFrame(animationFrameId);
-        animationFrameId = null;
-        pausedByVisibility = true;
-      }
+  const pauseLoop = (): void => {
+    if (animationFrameId !== null) {
+      cancelAnimationFrame(animationFrameId);
+      animationFrameId = null;
+    }
+  };
 
+  // rAF は running かつ visible かつ onscreen のときだけ進みます。
+  // stop() 済みの場合は running が false なので、条件が揃っても再開しません。
+  const resumeLoopIfReady = (): void => {
+    if (!running || pausedByVisibility || pausedByIntersection) {
       return;
     }
 
-    // stop() 済みの場合は running が false なので、visible に戻っても再開しません。
-    if (running && pausedByVisibility) {
-      pausedByVisibility = false;
-      // 一時停止中の経過で deltaTime が巨大にならないようにリセットします。
-      lastTimeMs = performance.now();
-      animationFrameId = requestAnimationFrame(tick);
+    if (animationFrameId !== null) {
+      return;
     }
+
+    // 一時停止中の経過で deltaTime が巨大にならないようにリセットします。
+    lastTimeMs = performance.now();
+    animationFrameId = requestAnimationFrame(tick);
+  };
+
+  const handleVisibilityChange = (): void => {
+    if (document.visibilityState === "hidden") {
+      pausedByVisibility = true;
+      pauseLoop();
+      return;
+    }
+
+    pausedByVisibility = false;
+    resumeLoopIfReady();
+  };
+
+  const handleIntersectionChange = (
+    entries: IntersectionObserverEntry[],
+  ): void => {
+    const entry = entries[entries.length - 1];
+
+    if (entry === undefined) {
+      return;
+    }
+
+    if (!entry.isIntersecting) {
+      pausedByIntersection = true;
+      pauseLoop();
+      return;
+    }
+
+    pausedByIntersection = false;
+    resumeLoopIfReady();
   };
 
   const start = (): void => {
@@ -133,17 +170,16 @@ export function createCanvasApp(
     startTimeMs = performance.now();
     lastTimeMs = startTimeMs;
     frameIndex = 0;
-    animationFrameId = requestAnimationFrame(tick);
+
+    // hidden / offscreen による一時停止中は、その状態が解けたときに再開します。
+    if (!pausedByVisibility && !pausedByIntersection) {
+      animationFrameId = requestAnimationFrame(tick);
+    }
   };
 
   const stop = (): void => {
     running = false;
-    pausedByVisibility = false;
-
-    if (animationFrameId !== null) {
-      cancelAnimationFrame(animationFrameId);
-      animationFrameId = null;
-    }
+    pauseLoop();
   };
 
   const destroy = (): void => {
@@ -158,6 +194,11 @@ export function createCanvasApp(
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     }
 
+    if (intersectionObserver !== null) {
+      intersectionObserver.disconnect();
+      intersectionObserver = null;
+    }
+
     mouse.destroy();
     destroyed = true;
   };
@@ -167,6 +208,11 @@ export function createCanvasApp(
 
   if (pauseWhenHidden) {
     document.addEventListener("visibilitychange", handleVisibilityChange);
+  }
+
+  if (pauseWhenOffscreen) {
+    intersectionObserver = new IntersectionObserver(handleIntersectionChange);
+    intersectionObserver.observe(canvas);
   }
 
   if (autoStart) {

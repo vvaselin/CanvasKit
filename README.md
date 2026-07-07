@@ -54,6 +54,7 @@ examples/shapes.html
 examples/colors.html
 examples/transform.html
 examples/lifecycle.html
+examples/offscreen.html
 ```
 
 サンプルは `../dist/index.js` を import します。`src/` を変更した後は `npm run build` を実行してください。
@@ -91,6 +92,11 @@ examples/lifecycle.html
   - frame count / deltaTime readout
   - `stop()` / `start()`
 
+- `examples/offscreen.html`
+  - `pauseWhenOffscreen: true`
+  - scroll で pause / resume
+  - fixed HUD
+
 ## 最小サンプル
 
 ```ts
@@ -117,11 +123,13 @@ createCanvasApp("#canvas", ({ draw, size }) => {
 - `maxDpr` は Canvas の最大 devicePixelRatio です。
 - `clearEachFrame` は毎フレーム自動で clear するかどうかです。既定値は `false` です。
 - `pauseWhenHidden` は Web ページが非表示の間だけ Canvas の rAF loop を止めるかどうかです。既定値は `false` です。`hidden` で停止し、`visible` で再開します。再開直後に `deltaTime` が跳ねないように `lastTime` をリセットします。`time` は wall-clock なので pause 中も進みます。`stop()` 後は `visible` になっても再開しません。`destroy()` は `visibilitychange` listener も外します。
+- `pauseWhenOffscreen` は Canvas が viewport 外にある間だけ rAF loop を止めるかどうかです。既定値は `false` です。複数の Canvas 装飾を置くページで、画面外の Canvas が描き続けないようにするための設定です。内部では `IntersectionObserver` を使います。再開時は `lastTime` をリセットするため、`deltaTime` は大きく跳ねません。`stop()` で止めた場合は、viewport に戻っても再開しません。`destroy()` は `IntersectionObserver.disconnect()` も呼びます。`IntersectionObserver` がない環境への fallback はありません。`pauseWhenHidden` と両方 `true` の場合、hidden または offscreen のどちらかなら停止し、visible かつ onscreen のときだけ再開します。
 
 ```ts
 createCanvasApp("#canvas", frame, {
   autoStart: true,
   pauseWhenHidden: true,
+  pauseWhenOffscreen: true,
 });
 ```
 
@@ -452,11 +460,11 @@ style object では次の `ShapeStyle` properties を使えます。
 - rgb() / rgba() / hsl() / hsla()
 - withTransform
 - pauseWhenHidden
+- pauseWhenOffscreen
 
 ### v0.3 candidate
 
 - draw.image
-- pauseWhenOffscreen
 - respectReducedMotion
 
 ### v0.4 candidate

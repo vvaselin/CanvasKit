@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>canvaskit offscreen pause example</title>
+    <style>
+      html,
+      body {
+        width: 100%;
+        min-height: 100%;
+        margin: 0;
+      }
+
+      body {
+        overflow: auto;
+        background: #0f1117;
+        color: #ffffffcc;
+        font-family: system-ui, sans-serif;
+      }
+
+      main {
+        min-height: 2600px;
+        padding: 24px;
+      }
+
+      h1 {
+        margin: 0 0 14px;
+        color: #fff;
+        font-size: 22px;
+        font-weight: 700;
+      }
+
+      p {
+        max-width: 900px;
+        margin: 12px 0 0;
+        color: #ffffff99;
+        line-height: 1.7;
+      }
+
+      canvas {
+        display: block;
+        width: 900px;
+        height: 420px;
+      }
+
+      .spacer {
+        display: grid;
+        place-items: center;
+        width: 900px;
+        color: #ffffff33;
+        font-size: 13px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .spacer-before {
+        height: 600px;
+      }
+
+      .spacer-after {
+        height: 1000px;
+      }
+
+      .hud {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        z-index: 10;
+        min-width: 220px;
+        border: 1px solid #ffffff22;
+        border-radius: 6px;
+        padding: 12px 14px;
+        background: #171d2aea;
+        color: #ffffffcc;
+        font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+        font-size: 13px;
+        line-height: 1.7;
+        box-shadow: 0 12px 28px #00000055;
+      }
+
+      .hud-title {
+        margin-bottom: 6px;
+        color: #fff;
+        font-weight: 700;
+      }
+
+      .hud-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="hud" aria-label="frame state">
+      <div class="hud-title">offscreen HUD</div>
+      <div class="hud-row"><span>frame</span><span id="hud-frame">0</span></div>
+      <div class="hud-row"><span>time</span><span id="hud-time">0.00</span></div>
+      <div class="hud-row"><span>delta ms</span><span id="hud-delta">0.0</span></div>
+      <div class="hud-row"><span>visibility</span><span id="hud-visibility">visible</span></div>
+      <div class="hud-row"><span>onscreen</span><span id="hud-onscreen">false</span></div>
+    </aside>
+
+    <main>
+      <h1>offscreen pause example</h1>
+      <p>
+        下へスクロールして Canvas が viewport の外へ出ると、offscreen の間は frame count が止まります。戻すと自動で再開し、再開直後の deltaTime は大きく跳ねません。
+        pauseWhenHidden と組み合わせると、hidden または offscreen のどちらかなら停止し、visible かつ onscreen のときだけ再開します。
+      </p>
+
+      <div class="spacer spacer-before">scroll</div>
+      <canvas id="canvas"></canvas>
+      <div class="spacer spacer-after">scroll</div>
+    </main>
+
+    <script type="module">
+      import {
+        createCanvasApp,
+        Palette,
+        vec2,
+        rect,
+        circle,
+        line,
+        rgba,
+        hsl,
+      } from "../dist/index.js";
+
+      const font = "system-ui, sans-serif";
+      const canvas = document.querySelector("#canvas");
+      const hudFrame = document.querySelector("#hud-frame");
+      const hudTime = document.querySelector("#hud-time");
+      const hudDelta = document.querySelector("#hud-delta");
+      const hudVisibility = document.querySelector("#hud-visibility");
+      const hudOnscreen = document.querySelector("#hud-onscreen");
+
+      let angle = 0;
+      let onscreen = false;
+
+      // HUD 表示用に別の IntersectionObserver で監視します。ライブラリ内部の監視状態を読むためのものではありません。
+      const hudObserver = new IntersectionObserver((entries) => {
+        onscreen = entries.some((entry) => entry.isIntersecting);
+        hudOnscreen.textContent = String(onscreen);
+      });
+      hudObserver.observe(canvas);
+
+      const app = createCanvasApp("#canvas", ({ draw, frame, time, deltaTime, size }) => {
+        angle += deltaTime * 1.5;
+
+        draw.clear("#0f1117");
+
+        draw.text("pauseWhenOffscreen: true", vec2(40, 46), {
+          size: 24,
+          fill: Palette.White,
+          font,
+        });
+
+        draw.text("frame", vec2(64, 110), {
+          size: 16,
+          fill: "#ffffff99",
+          font,
+        });
+        draw.text(String(frame), vec2(64, 150), {
+          size: 36,
+          fill: Palette.White,
+          font,
+        });
+
+        draw.text("time", vec2(260, 110), {
+          size: 16,
+          fill: "#ffffff99",
+          font,
+        });
+        draw.text(time.toFixed(2), vec2(260, 150), {
+          size: 36,
+          fill: Palette.White,
+          font,
+        });
+
+        draw.text("deltaTime ms", vec2(456, 110), {
+          size: 16,
+          fill: "#ffffff99",
+          font,
+        });
+        draw.text((deltaTime * 1000).toFixed(1), vec2(456, 150), {
+          size: 36,
+          fill: Palette.White,
+          font,
+        });
+
+        draw.text("visibility", vec2(678, 110), {
+          size: 16,
+          fill: "#ffffff99",
+          font,
+        });
+        draw.text(document.visibilityState, vec2(678, 150), {
+          size: 36,
+          fill: document.visibilityState === "visible" ? Palette.Limegreen : Palette.Orange,
+          font,
+        });
+
+        draw.text("deltaTime で回る図形", vec2(size.center.x, 230), {
+          size: 16,
+          fill: "#ffffffcc",
+          align: "center",
+          font,
+        });
+
+        draw.shape(circle(vec2(size.center.x, 320), 86), {
+          stroke: rgba(255, 255, 255, 0.18),
+          width: 2,
+        });
+
+        // offscreen 中は requestAnimationFrame を止めるので、deltaTime で積んだ角度は飛びません。
+        draw.withTransform({
+          translate: vec2(size.center.x, 320),
+          rotate: angle,
+        }, () => {
+          draw.shape(line(vec2(0, 0), vec2(92, 0)), {
+            stroke: "#ffffff88",
+            width: 3,
+            lineCap: "round",
+          });
+          draw.roundRect(rect(-46, -28, 92, 56), 8, {
+            fill: hsl((time * 24) % 360, 68, 46),
+            stroke: Palette.White,
+            width: 2,
+          });
+          draw.circle(vec2(92, 0), 14, {
+            fill: Palette.Gold,
+            stroke: Palette.White,
+            width: 2,
+          });
+        });
+
+        draw.text("stop() で止めた場合は、viewport に戻っても自動では再開しません。", vec2(size.center.x, 394), {
+          size: 14,
+          fill: "#ffffff80",
+          align: "center",
+          font,
+        });
+
+        hudFrame.textContent = String(frame);
+        hudTime.textContent = time.toFixed(2);
+        hudDelta.textContent = (deltaTime * 1000).toFixed(1);
+        hudVisibility.textContent = document.visibilityState;
+        hudOnscreen.textContent = String(onscreen);
+      }, {
+        autoStart: true,
+        maxDpr: 2,
+        pauseWhenHidden: true,
+        pauseWhenOffscreen: true,
+      });
+
+      // createCanvasApp 側も IntersectionObserver で監視します。destroy() ではその observer も disconnect されます。
+      // stop() で止めた場合は、viewport に戻っても自動では再開しません。
+    </script>
+  </body>
+</html>
