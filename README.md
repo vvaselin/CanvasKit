@@ -34,6 +34,8 @@ It is intended for drawing simple shapes, emoji, and lightweight animation effec
 
 CanvasKit intentionally throws when an important operation fails. For example, `createCanvasApp()` throws if a 2D context cannot be created. Unsupported drawing features are not replaced with different rendering methods behind the scenes.
 
+`createCanvasApp()` accepts either an `HTMLCanvasElement` or a CSS selector string. Passing a selector is a convenience API for canvas lookup, not a fallback. If the selector does not match an element, or if it matches a non-canvas element, CanvasKit throws.
+
 ## Local Usage
 
 This project is currently meant to be used locally, not installed from npm.
@@ -57,37 +59,18 @@ The example imports from `../dist/index.js`, so run `npm run build` after changi
 import {
   createCanvasApp,
   Palette,
-  deg,
-  lerp,
-  pingPong,
 } from "./dist/index.js";
 
-const app = createCanvasApp(canvas, ({ draw, time, size }) => {
+createCanvasApp("#canvas", ({ draw, size }) => {
   draw.clear("#0f1117");
 
-  const t = pingPong(time * 0.5, 1);
-  const x = lerp(80, size.width - 80, t);
-
-  draw.line(
-    { x: 80, y: size.center.y },
-    { x, y: size.center.y },
-    {
-      stroke: "#ffffff33",
-      width: 2,
-    },
-  );
-
-  draw.circle({ x, y: size.center.y }, 32, {
+  draw.circle(size.center, 40, {
     fill: Palette.Skyblue,
   });
-
-  draw.emoji("🌙", { x, y: size.center.y - 72 }, {
-    size: 64,
-    rotation: deg(Math.sin(time) * 10),
-  });
+}, {
+  autoStart: true,
+  maxDpr: 2,
 });
-
-app.start();
 ```
 
 ## Style Objects
@@ -124,6 +107,8 @@ Emoji appearance depends on the browser, OS, and installed emoji fonts. CanvasKi
 Fallbacks are intentionally not added at this stage.
 
 - No fallback when `CanvasRenderingContext2D` cannot be created
+- No canvas creation fallback when a selector does not match
+- No fallback from a matched non-canvas element to another element
 - No automatic replacement for unsupported drawing features
 - No `OffscreenCanvas` to normal Canvas fallback
 - No emoji image asset fallback
@@ -134,7 +119,7 @@ If an alternative path becomes necessary later, it should be added deliberately 
 
 ## Current API
 
-- `createCanvasApp(canvas, frame, options?)`
+- `createCanvasApp(canvasOrSelector, frame, options?)`
 - `Palette`
 - `deg()`
 - `rad()`

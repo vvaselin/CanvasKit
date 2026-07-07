@@ -37,29 +37,20 @@
         easeOutCubic,
       } from "../dist/index.js";
 
-      const canvas = document.querySelector("#canvas");
-
-      if (!(canvas instanceof HTMLCanvasElement)) {
-        throw new Error("basic example: canvas element was not found.");
-      }
-
       const ripples = [];
-      let wasPressed = false;
 
-      const app = createCanvasApp(canvas, ({ draw, time, deltaTime, size, input }) => {
+      const app = createCanvasApp("#canvas", ({ draw, time, deltaTime, size, input }) => {
         draw.clear("#0f1117");
 
         const mouse = input.mouse;
 
-        if (mouse.left.down && !wasPressed) {
+        if (mouse.left.down) {
           ripples.push({
             x: mouse.position.x,
             y: mouse.position.y,
             age: 0,
           });
         }
-
-        wasPressed = mouse.left.pressed;
 
         const t = pingPong(time * 0.5, 1);
         const x = lerp(80, Math.max(80, size.width - 80), t);
@@ -148,9 +139,11 @@
             },
           );
         }
+      }, {
+        autoStart: true,
+        maxDpr: 2,
       });
 
-      app.start();
       window.addEventListener("pagehide", () => app.destroy(), { once: true });
     </script>
   </body>

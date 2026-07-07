@@ -16,11 +16,14 @@ export type CanvasApp = {
 
 export type CanvasFrame = (context: CanvasFrameContext) => void;
 
+export type CanvasSource = HTMLCanvasElement | string;
+
 export function createCanvasApp(
-  canvas: HTMLCanvasElement,
+  canvasOrSelector: CanvasSource,
   frame: CanvasFrame,
   options: CanvasAppOptions = {},
 ): CanvasApp {
+  const canvas = resolveCanvas(canvasOrSelector);
   const ctx = canvas.getContext("2d");
 
   if (ctx === null) {
@@ -142,6 +145,32 @@ export function createCanvasApp(
     stop,
     destroy,
   };
+}
+
+function resolveCanvas(canvasOrSelector: CanvasSource): HTMLCanvasElement {
+  if (typeof canvasOrSelector !== "string") {
+    return canvasOrSelector;
+  }
+
+  if (typeof document === "undefined") {
+    throw new Error("createCanvasApp: document is not available.");
+  }
+
+  const element = document.querySelector(canvasOrSelector);
+
+  if (element === null) {
+    throw new Error(
+      `createCanvasApp: canvas selector "${canvasOrSelector}" did not match any element.`,
+    );
+  }
+
+  if (!(element instanceof HTMLCanvasElement)) {
+    throw new Error(
+      `createCanvasApp: selector "${canvasOrSelector}" matched a non-canvas element.`,
+    );
+  }
+
+  return element;
 }
 
 function getCanvasCssSize(canvas: HTMLCanvasElement): Size2D {
