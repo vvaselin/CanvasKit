@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>canvaskit state example</title>
+    <style>
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+      }
+
+      body {
+        overflow: auto;
+        background: #0f1117;
+      }
+
+      canvas {
+        display: block;
+        width: 1200px;
+        height: 760px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+
+    <script type="module">
+      import {
+        createCanvasApp,
+        Palette,
+        vec2,
+        rect,
+        circle,
+        line,
+        deg,
+        rgb,
+        rgba,
+        hsl,
+        hsla,
+      } from "../dist/index.js";
+
+      const font = "system-ui, sans-serif";
+
+      const label = (draw, text, pos) => {
+        draw.text(text, pos, {
+          size: 15,
+          fill: "#ffffffcc",
+          font,
+        });
+      };
+
+      const drawMiniScene = (draw, origin) => {
+        draw.roundRect(rect(origin.x, origin.y, 150, 76), 14, {
+          fill: "#243047",
+          stroke: "#ffffff55",
+          width: 2,
+        });
+        draw.circle(vec2(origin.x + 38, origin.y + 38), 22, {
+          fill: Palette.Skyblue,
+          alpha: 0.8,
+        });
+        draw.text("alpha", vec2(origin.x + 98, origin.y + 39), {
+          size: 18,
+          fill: Palette.White,
+          align: "center",
+          baseline: "middle",
+          font,
+        });
+      };
+
+      createCanvasApp("#canvas", ({ draw, time, size }) => {
+        draw.clear("#0f1117");
+
+        draw.text("draw.withState(): alpha / blend / shadow / filter", vec2(40, 46), {
+          size: 24,
+          fill: Palette.White,
+          font,
+        });
+
+        draw.text("Canvas 2D の描画状態を callback の間だけ切り替えます。", vec2(80, 80), {
+          size: 15,
+          fill: "#ffffff99",
+          font,
+        });
+
+        label(draw, "glow: shadowBlur / shadowColor", vec2(80, 126));
+        draw.circle(vec2(122, 202), 34, {
+          fill: "#3c465f",
+          stroke: "#ffffff66",
+          width: 2,
+        });
+        draw.text("通常", vec2(122, 258), {
+          size: 13,
+          fill: "#ffffff88",
+          align: "center",
+          font,
+        });
+
+        const glowBlur = 18 + Math.sin(time * 2.4) * 8;
+        draw.withState({
+          shadowBlur: glowBlur,
+          shadowColor: rgb(0, 229, 255),
+        }, () => {
+          draw.shape(circle(vec2(218, 202), 28), { fill: "#00e5ff" });
+          draw.shape(circle(vec2(280, 202), 24), { fill: "#7aa2ff" });
+          draw.shape(circle(vec2(337, 202), 20), { fill: "#ff79c6" });
+        });
+
+        label(draw, 'blend: "lighter"', vec2(440, 126));
+        const blendColors = [
+          rgba(255, 80, 90, 0.56),
+          rgba(80, 255, 140, 0.56),
+          rgba(80, 150, 255, 0.56),
+        ];
+        const leftCenters = [vec2(500, 202), vec2(552, 202), vec2(526, 158)];
+        const rightCenters = [vec2(700, 202), vec2(752, 202), vec2(726, 158)];
+
+        draw.text("通常", vec2(526, 258), {
+          size: 13,
+          fill: "#ffffff88",
+          align: "center",
+          font,
+        });
+        leftCenters.forEach((pos, index) => {
+          draw.circle(pos, 46, { fill: blendColors[index] });
+        });
+
+        draw.withState({ blend: "lighter" }, () => {
+          rightCenters.forEach((pos, index) => {
+            draw.circle(pos, 46, { fill: blendColors[index] });
+          });
+        });
+        draw.text("lighter", vec2(726, 258), {
+          size: 13,
+          fill: "#ffffff88",
+          align: "center",
+          font,
+        });
+
+        label(draw, "group alpha", vec2(870, 126));
+        drawMiniScene(draw, vec2(860, 164));
+        draw.text("1.0", vec2(935, 258), {
+          size: 13,
+          fill: "#ffffff88",
+          align: "center",
+          font,
+        });
+
+        // alpha は置き換えではなく乗算で合成されます。style.alpha とも掛け算になります。
+        draw.withState({ alpha: 0.4 }, () => {
+          drawMiniScene(draw, vec2(1020, 164));
+        });
+        draw.text("0.4", vec2(1095, 258), {
+          size: 13,
+          fill: "#ffffff88",
+          align: "center",
+          font,
+        });
+
+        label(draw, "filter: blur / hue-rotate", vec2(80, 328));
+        // filter の対応はブラウザ次第です。CanvasKit 側の fallback はありません。
+        draw.withState({ filter: "blur(6px)" }, () => {
+          draw.roundRect(rect(98, 374, 130, 76), 18, {
+            fill: "#7aa2ff",
+            stroke: "#ffffffaa",
+            width: 3,
+          });
+        });
+        draw.roundRect(rect(258, 374, 130, 76), 18, {
+          fill: "#7aa2ff",
+          stroke: "#ffffffaa",
+          width: 3,
+        });
+        draw.text("blur", vec2(163, 470), {
+          size: 13,
+          fill: "#ffffff88",
+          align: "center",
+          font,
+        });
+        draw.text("通常", vec2(323, 470), {
+          size: 13,
+          fill: "#ffffff88",
+          align: "center",
+          font,
+        });
+
+        draw.withState({ filter: "hue-rotate(" + Math.round(time * 80) + "deg)" }, () => {
+          draw.circle(vec2(478, 414), 42, {
+            fill: hsl(210, 80, 60),
+            stroke: "#ffffff99",
+            width: 2,
+          });
+        });
+
+        label(draw, "shadowOffset: drop shadow", vec2(620, 328));
+        draw.withState({
+          shadowBlur: 18,
+          shadowColor: "rgba(0,0,0,0.6)",
+          shadowOffset: vec2(0, 10),
+        }, () => {
+          draw.roundRect(rect(640, 372, 220, 92), 16, {
+            fill: "#f6f2e8",
+          });
+        });
+        draw.text("card", vec2(750, 418), {
+          size: 24,
+          fill: "#1f2735",
+          align: "center",
+          baseline: "middle",
+          font,
+        });
+
+        label(draw, "withTransform と nest", vec2(930, 328));
+        // withTransform と自由に nest できます。どちらも save / restore の stack を使います。
+        draw.withTransform({
+          translate: vec2(1030, 420),
+          rotate: deg(time * 28),
+        }, () => {
+          draw.withState({
+            blend: "lighter",
+            shadowBlur: 16,
+            shadowColor: "#ff79c6",
+          }, () => {
+            draw.shape(line(vec2(-70, 0), vec2(70, 0)), {
+              stroke: "#ffffff44",
+              width: 2,
+              lineCap: "round",
+            });
+            for (let i = 0; i < 4; i += 1) {
+              draw.withTransform({ rotate: i * Math.PI * 0.5 + time }, () => {
+                draw.circle(vec2(70, 0), 16, {
+                  fill: hsla(i * 80 + time * 60, 85, 65, 0.72),
+                });
+              });
+            }
+            draw.circle(vec2(0, 0), 24, {
+              fill: rgba(255, 255, 255, 0.35),
+              stroke: Palette.White,
+              width: 2,
+            });
+          });
+        });
+
+        draw.withState({
+          shadowBlur: 12,
+          shadowColor: "#50fa7b",
+          lineCap: "round",
+          lineJoin: "round",
+        }, () => {
+          draw.polyline([
+            vec2(90, 610),
+            vec2(150, 560),
+            vec2(220, 632),
+            vec2(300, 548),
+            vec2(382, 610),
+          ], {
+            stroke: "#50fa7b",
+            width: 10,
+          });
+        });
+        label(draw, "lineCap / lineJoin の既定値も callback の中だけ変えられます。", vec2(80, 532));
+
+        draw.text("callback が例外を投げても restore され、状態は callback の外に漏れません。", vec2(size.center.x, 736), {
+          size: 14,
+          fill: "#ffffff80",
+          align: "center",
+          font,
+        });
+      }, {
+        autoStart: true,
+        maxDpr: 2,
+      });
+    </script>
+  </body>
+</html>

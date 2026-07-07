@@ -3,6 +3,7 @@ import type {
   EmojiStyle,
   ImageStyle,
   Rect,
+  RenderState2D,
   Shape,
   ShapeStyle,
   Size2D,
@@ -82,6 +83,86 @@ export class CanvasDrawContext implements DrawContext {
 
       if (scaleVec !== undefined) {
         ctx.scale(scaleVec.x, scaleVec.y);
+      }
+
+      callback();
+    } finally {
+      ctx.restore();
+    }
+  }
+
+  withState(state: RenderState2D, callback: () => void): void {
+    const { ctx } = this;
+    const {
+      alpha,
+      blend,
+      shadowBlur,
+      shadowColor,
+      shadowOffset,
+      filter,
+      lineCap,
+      lineJoin,
+    } = state;
+
+    if (alpha !== undefined && (!Number.isFinite(alpha) || alpha < 0 || alpha > 1)) {
+      throw new RangeError(
+        "draw.withState: alpha must be a finite number in the range 0-1.",
+      );
+    }
+
+    if (
+      shadowBlur !== undefined &&
+      (!Number.isFinite(shadowBlur) || shadowBlur < 0)
+    ) {
+      throw new RangeError(
+        "draw.withState: shadowBlur must be a finite number greater than or equal to 0.",
+      );
+    }
+
+    if (shadowOffset !== undefined) {
+      if (!Number.isFinite(shadowOffset.x) || !Number.isFinite(shadowOffset.y)) {
+        throw new RangeError(
+          "draw.withState: shadowOffset must contain finite numbers.",
+        );
+      }
+    }
+
+    ctx.save();
+
+    try {
+      // alpha は置き換えではなく乗算です。withState の入れ子や
+      // style.alpha との組み合わせが自然に合成されます。
+      if (alpha !== undefined) {
+        ctx.globalAlpha = ctx.globalAlpha * alpha;
+      }
+
+      if (blend !== undefined) {
+        ctx.globalCompositeOperation = blend;
+      }
+
+      if (shadowBlur !== undefined) {
+        ctx.shadowBlur = shadowBlur;
+      }
+
+      if (shadowColor !== undefined) {
+        ctx.shadowColor = shadowColor;
+      }
+
+      if (shadowOffset !== undefined) {
+        ctx.shadowOffsetX = shadowOffset.x;
+        ctx.shadowOffsetY = shadowOffset.y;
+      }
+
+      if (filter !== undefined) {
+        ctx.filter = filter;
+      }
+
+      if (lineCap !== undefined) {
+        ctx.lineCap = lineCap;
+      }
+
+      if (lineJoin !== undefined) {
+        ctx.lineJoin = lineJoin;
       }
 
       callback();
@@ -259,7 +340,7 @@ export class CanvasDrawContext implements DrawContext {
     const font = normalized.font ?? defaultTextFont;
 
     ctx.save();
-    ctx.globalAlpha = normalized.alpha ?? 1;
+    ctx.globalAlpha = ctx.globalAlpha * (normalized.alpha ?? 1);
     ctx.fillStyle = normalized.fill ?? defaultFill;
     ctx.font = `${size}px ${font}`;
     ctx.textAlign = normalized.align ?? "start";
@@ -277,7 +358,7 @@ export class CanvasDrawContext implements DrawContext {
     const scaleX = style.mirrored === true ? -scale : scale;
 
     ctx.save();
-    ctx.globalAlpha = style.alpha ?? 1;
+    ctx.globalAlpha = ctx.globalAlpha * (style.alpha ?? 1);
     ctx.translate(pos.x, pos.y);
     ctx.rotate(rotation);
     ctx.scale(scaleX, scale);
@@ -304,7 +385,7 @@ export class CanvasDrawContext implements DrawContext {
     const scaleX = style.mirrored === true ? -scale : scale;
 
     ctx.save();
-    ctx.globalAlpha = style.alpha ?? 1;
+    ctx.globalAlpha = ctx.globalAlpha * (style.alpha ?? 1);
     ctx.translate(pos.x, pos.y);
     ctx.rotate(rotation);
     ctx.scale(scaleX, scale);
@@ -316,7 +397,8 @@ export class CanvasDrawContext implements DrawContext {
     const { ctx } = this;
     const normalized = normalizeShapeStyle(style);
 
-    ctx.globalAlpha = normalized.alpha ?? 1;
+    // withState({ alpha }) の中では外側の alpha と乗算で合成されます。
+    ctx.globalAlpha = ctx.globalAlpha * (normalized.alpha ?? 1);
 
     if (normalized.fill !== undefined) {
       ctx.fillStyle = normalized.fill;
@@ -344,7 +426,7 @@ export class CanvasDrawContext implements DrawContext {
     const { ctx } = this;
     const normalized = normalizeShapeStyle(style);
 
-    ctx.globalAlpha = normalized.alpha ?? 1;
+    ctx.globalAlpha = ctx.globalAlpha * (normalized.alpha ?? 1);
     ctx.strokeStyle = normalized.stroke ?? normalized.fill ?? defaultFill;
     ctx.lineWidth = normalized.width ?? 1;
 

@@ -53,6 +53,7 @@ examples/geometry.html
 examples/shapes.html
 examples/colors.html
 examples/transform.html
+examples/state.html
 examples/images.html
 examples/lifecycle.html
 examples/offscreen.html
@@ -89,6 +90,11 @@ examples/showcase.html
   - `draw.withTransform()`
   - rotate / scale animation
   - 入れ子 transform
+
+- `examples/state.html`
+  - `draw.withState()`
+  - glow / blend / group alpha / filter
+  - `withTransform` との nest
 
 - `examples/images.html`
   - `draw.image()` / `loadImage()`
@@ -375,6 +381,25 @@ draw.withTransform({
 });
 ```
 
+## RenderState
+
+`draw.withState(state, callback)` は、callback の間だけ Canvas 2D の描画状態を適用します。state は `{ alpha?, blend?, shadowBlur?, shadowColor?, shadowOffset?, filter?, lineCap?, lineJoin? }` です。
+
+`alpha` は `0..1` で、置き換えではなく掛け算で合成されます。入れ子の `withState` や `style.alpha` と自然に組み合わせられます。`blend` は `globalCompositeOperation`、`filter` は `ctx.filter` の CSS filter string です。filter の対応はブラウザに依存し、fallback はありません。
+
+非有限値や範囲外の値は `RangeError` です。内部では `ctx.save()` / `ctx.restore()` を使い、callback が例外を投げても restore されます。状態は外に漏れません。`withTransform` とも nest できます。
+
+```ts
+draw.withState({
+  alpha: 0.6,
+  blend: "lighter",
+  shadowBlur: 16,
+  shadowColor: "#7aa2ff",
+}, () => {
+  draw.shape(c, { fill: Palette.Skyblue });
+});
+```
+
 ## 絵文字描画
 
 `draw.emoji()` は、現時点では Canvas の text 描画、つまり `fillText()` で実装しています。
@@ -463,6 +488,7 @@ style object では次の `ShapeStyle` properties を使えます。
 
 - `draw.clear(color?)`
 - `draw.withTransform(transform, callback)`
+- `draw.withState(state, callback)`
 - `draw.shape(shape, style?)`
 - `draw.circle(pos, radius, style?)`
 - `draw.ellipse(pos, radiusX, radiusY, style?)`
@@ -512,10 +538,12 @@ style object では次の `ShapeStyle` properties を使えます。
 - respectReducedMotion
 - draw.image
 
+### v0.4 completed or in progress
+
+- draw.withState() (RenderState2D)
+
 ### v0.4 candidate
 
 - Color class
-- RenderState
-- withState
 - RenderTarget
 - Camera2D

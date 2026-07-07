@@ -9,6 +9,17 @@ export type Size2D = {
   center: Vec2;
 };
 
+export type RenderState2D = {
+  alpha?: number;
+  blend?: GlobalCompositeOperation;
+  shadowBlur?: number;
+  shadowColor?: string;
+  shadowOffset?: Vec2;
+  filter?: string;
+  lineCap?: CanvasLineCap;
+  lineJoin?: CanvasLineJoin;
+};
+
 export type Transform2D = {
   translate?: Vec2;
   rotate?: number;
@@ -55,6 +66,7 @@ export type EmojiStyle = {
 export type DrawContext = {
   clear(color?: string): void;
   withTransform(transform: Transform2D, callback: () => void): void;
+  withState(state: RenderState2D, callback: () => void): void;
   shape(shape: Shape, style?: ShapeStyle | string): void;
   circle(pos: Vec2, radius: number, style?: ShapeStyle | string): void;
   ellipse(
