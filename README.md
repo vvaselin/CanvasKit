@@ -52,6 +52,7 @@ examples/basic.html
 examples/geometry.html
 examples/shapes.html
 examples/colors.html
+examples/transform.html
 ```
 
 サンプルは `../dist/index.js` を import します。`src/` を変更した後は `npm run build` を実行してください。
@@ -78,6 +79,11 @@ examples/colors.html
   - `rgb()` / `rgba()` / `hsl()` / `hsla()`
   - hue animation
   - Palette 色見本
+
+- `examples/transform.html`
+  - `draw.withTransform()`
+  - rotate / scale animation
+  - 入れ子 transform
 
 ## 最小サンプル
 
@@ -292,6 +298,28 @@ draw.circle(pos, 32, {
 });
 ```
 
+## Transform
+
+`draw.withTransform(transform, callback)` は、callback の間だけ描画座標を変換します。transform は `{ translate?, rotate?, scale? }` で、適用順は translate → rotate → scale です。rotate はラジアン指定です。角度で書きたい場合は `deg()` を使えます。scale は `number` なら均等拡大、`Vec2` なら x / y 別々の拡大です。
+
+内部では `ctx.save()` / `ctx.restore()` を使います。callback が例外を投げても restore は実行されます。変換されるのは描画だけです。mouse input / `contains()` / `intersects()` の座標は変換しません。`NaN` / `Infinity` のような非有限値は `RangeError` です。origin、Camera2D、matrix API、mouse 座標変換はまだありません。
+
+```ts
+draw.withTransform({
+  translate: vec2(400, 300),
+  rotate: deg(30),
+  scale: 1.2,
+}, () => {
+  draw.shape(circle(vec2(0, 0), 48), {
+    fill: Palette.Skyblue,
+  });
+
+  draw.emoji("🛰️", vec2(90, 0), {
+    size: 48,
+  });
+});
+```
+
 ## 絵文字描画
 
 `draw.emoji()` は、現時点では Canvas の text 描画、つまり `fillText()` で実装しています。
@@ -359,6 +387,7 @@ style object では次の `ShapeStyle` properties を使えます。
 描画メソッドは、frame callback に渡される `draw` オブジェクトから使います。
 
 - `draw.clear(color?)`
+- `draw.withTransform(transform, callback)`
 - `draw.shape(shape, style?)`
 - `draw.circle(pos, radius, style?)`
 - `draw.ellipse(pos, radiusX, radiusY, style?)`
@@ -401,11 +430,11 @@ style object では次の `ShapeStyle` properties を使えます。
 
 - Palette拡張
 - rgb() / rgba() / hsl() / hsla()
+- withTransform
 
 ### v0.3 candidate
 
 - draw.image
-- withTransform
 - pauseWhenHidden
 - pauseWhenOffscreen
 - respectReducedMotion

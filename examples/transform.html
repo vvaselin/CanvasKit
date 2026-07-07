@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>canvaskit transform example</title>
+    <style>
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+      }
+
+      body {
+        overflow: auto;
+        background: #0f1117;
+      }
+
+      canvas {
+        display: block;
+        width: 1200px;
+        height: 760px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+
+    <script type="module">
+      import {
+        createCanvasApp,
+        Palette,
+        vec2,
+        rect,
+        circle,
+        line,
+        deg,
+        rgba,
+      } from "../dist/index.js";
+
+      const font = "system-ui, sans-serif";
+
+      createCanvasApp("#canvas", ({ draw, time, size }) => {
+        draw.clear("#0f1117");
+
+        draw.text("draw.withTransform(): translate / rotate / scale", vec2(40, 48), {
+          size: 24,
+          fill: Palette.White,
+          font,
+        });
+
+        draw.text("translate → rotate → scale の順で Canvas 2D の transform を一時的に適用します。", vec2(80, 84), {
+          size: 15,
+          fill: "#ffffff99",
+          font,
+        });
+
+        // transform は描画だけに効きます。mouse input / contains() / intersects() の座標は変換しません。
+        for (let x = 80; x <= 1120; x += 80) {
+          draw.line(vec2(x, 120), vec2(x, 710), {
+            stroke: rgba(255, 255, 255, x % 160 === 0 ? 0.12 : 0.06),
+            width: 1,
+          });
+        }
+
+        for (let y = 120; y <= 720; y += 80) {
+          draw.line(vec2(40, y), vec2(1160, y), {
+            stroke: rgba(255, 255, 255, y % 160 === 0 ? 0.12 : 0.06),
+            width: 1,
+          });
+        }
+
+        draw.line(vec2(size.center.x - 18, size.center.y), vec2(size.center.x + 18, size.center.y), {
+          stroke: "#ffffff66",
+          width: 2,
+        });
+        draw.line(vec2(size.center.x, size.center.y - 18), vec2(size.center.x, size.center.y + 18), {
+          stroke: "#ffffff66",
+          width: 2,
+        });
+
+        draw.text("rotating local group", vec2(280, 138), {
+          size: 16,
+          fill: "#ffffffcc",
+          align: "center",
+          font,
+        });
+
+        // rotate はラジアン指定です。角度で書きたいときは deg() を使えます。
+        draw.withTransform({
+          translate: vec2(280, 240),
+          rotate: time * 0.8,
+        }, () => {
+          draw.shape(circle(vec2(0, 0), 48), {
+            fill: "#7aa2ff",
+            stroke: Palette.White,
+            width: 2,
+          });
+
+          draw.shape(line(vec2(0, 0), vec2(90, 0)), {
+            stroke: "#ffffffaa",
+            width: 3,
+            lineCap: "round",
+          });
+
+          draw.circle(vec2(90, 0), 12, {
+            fill: Palette.Orange,
+            stroke: Palette.White,
+            width: 2,
+          });
+
+          draw.emoji("🛰️", vec2(90, 0), {
+            size: 40,
+          });
+
+          draw.shape(line(vec2(-72, 0), vec2(72, 0)), {
+            stroke: "#ffffff55",
+            width: 1,
+          });
+          draw.shape(line(vec2(0, -72), vec2(0, 72)), {
+            stroke: "#ffffff55",
+            width: 1,
+          });
+        });
+
+        draw.text("pulsing scale", vec2(620, 138), {
+          size: 16,
+          fill: "#ffffffcc",
+          align: "center",
+          font,
+        });
+
+        const pulse = 1 + Math.sin(time * 2) * 0.25;
+        draw.withTransform({
+          translate: vec2(620, 240),
+          scale: pulse,
+        }, () => {
+          draw.roundRect(rect(-92, -54, 184, 108), 14, {
+            fill: "#18251f",
+            stroke: Palette.Seagreen,
+            width: 2,
+          });
+
+          draw.circle(vec2(-48, 0), 24, {
+            fill: Palette.Seagreen,
+            alpha: 0.9,
+          });
+
+          draw.text("scale: " + pulse.toFixed(2), vec2(28, 0), {
+            size: 18,
+            fill: Palette.White,
+            align: "center",
+            baseline: "middle",
+            font,
+          });
+        });
+
+        draw.text("per-axis scale", vec2(940, 138), {
+          size: 16,
+          fill: "#ffffffcc",
+          align: "center",
+          font,
+        });
+
+        // Vec2 の scale は x / y を別々に伸縮します。ここでは円が楕円に見えます。
+        draw.withTransform({
+          translate: vec2(940, 240),
+          scale: vec2(1.6, 0.6),
+        }, () => {
+          draw.shape(circle(vec2(0, 0), 52), {
+            fill: "#ff79c6",
+            stroke: Palette.White,
+            width: 2,
+          });
+        });
+
+        draw.shape(circle(vec2(940, 240), 52), {
+          stroke: "#ffffff33",
+          width: 1,
+          dash: [6, 6],
+        });
+
+        draw.text("nested transforms", vec2(600, 430), {
+          size: 16,
+          fill: "#ffffffcc",
+          align: "center",
+          font,
+        });
+
+        // withTransform は入れ子にできます。save / restore の stack で変換が合成されます。
+        draw.withTransform({
+          translate: vec2(600, 575),
+          rotate: time * 0.35,
+        }, () => {
+          draw.circle(vec2(0, 0), 52, {
+            fill: Palette.Gold,
+            stroke: Palette.White,
+            width: 2,
+          });
+
+          draw.shape(line(vec2(0, 0), vec2(140, 0)), {
+            stroke: "#ffffff55",
+            width: 2,
+            dash: [8, 6],
+          });
+
+          draw.withTransform({
+            translate: vec2(140, 0),
+            rotate: time * 1.6,
+          }, () => {
+            draw.circle(vec2(0, 0), 26, {
+              fill: Palette.Royalblue,
+              stroke: Palette.White,
+              width: 2,
+            });
+
+            draw.shape(line(vec2(0, 0), vec2(58, 0)), {
+              stroke: "#ffffff88",
+              width: 2,
+            });
+
+            draw.circle(vec2(58, 0), 12, {
+              fill: Palette.White,
+            });
+          });
+        });
+
+        // callback 内で例外が出ても、finally で ctx.restore() が呼ばれる設計です。
+        draw.text("callback の間だけ変換し、終わると元の描画状態へ戻ります。", vec2(size.center.x, 736), {
+          size: 14,
+          fill: "#ffffff80",
+          align: "center",
+          font,
+        });
+      }, {
+        autoStart: true,
+        maxDpr: 2,
+      });
+    </script>
+  </body>
+</html>

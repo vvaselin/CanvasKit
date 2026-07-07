@@ -9,6 +9,12 @@ export type Size2D = {
   center: Vec2;
 };
 
+export type Transform2D = {
+  translate?: Vec2;
+  rotate?: number;
+  scale?: number | Vec2;
+};
+
 export type ShapeStyle = {
   fill?: string;
   stroke?: string;
@@ -39,6 +45,7 @@ export type EmojiStyle = {
 
 export type DrawContext = {
   clear(color?: string): void;
+  withTransform(transform: Transform2D, callback: () => void): void;
   shape(shape: Shape, style?: ShapeStyle | string): void;
   circle(pos: Vec2, radius: number, style?: ShapeStyle | string): void;
   ellipse(

@@ -6,6 +6,7 @@ import type {
   ShapeStyle,
   Size2D,
   TextStyle,
+  Transform2D,
   Vec2,
 } from "./types.js";
 
@@ -39,6 +40,53 @@ export class CanvasDrawContext implements DrawContext {
     }
 
     ctx.restore();
+  }
+
+  withTransform(transform: Transform2D, callback: () => void): void {
+    const { ctx } = this;
+    const { translate, rotate, scale } = transform;
+
+    // Canvas 2D は非有限値の変換を黙って無視するため、ここで明示的に検証します。
+    if (translate !== undefined) {
+      assertFiniteTransform("translate.x", translate.x);
+      assertFiniteTransform("translate.y", translate.y);
+    }
+
+    if (rotate !== undefined) {
+      assertFiniteTransform("rotate", rotate);
+    }
+
+    const scaleVec =
+      scale === undefined
+        ? undefined
+        : typeof scale === "number"
+          ? { x: scale, y: scale }
+          : scale;
+
+    if (scaleVec !== undefined) {
+      assertFiniteTransform("scale.x", scaleVec.x);
+      assertFiniteTransform("scale.y", scaleVec.y);
+    }
+
+    ctx.save();
+
+    try {
+      if (translate !== undefined) {
+        ctx.translate(translate.x, translate.y);
+      }
+
+      if (rotate !== undefined) {
+        ctx.rotate(rotate);
+      }
+
+      if (scaleVec !== undefined) {
+        ctx.scale(scaleVec.x, scaleVec.y);
+      }
+
+      callback();
+    } finally {
+      ctx.restore();
+    }
   }
 
   shape(shape: Shape, style?: ShapeStyle | string): void {
@@ -307,6 +355,14 @@ export class CanvasDrawContext implements DrawContext {
     if (hasStroke) {
       ctx.stroke();
     }
+  }
+}
+
+function assertFiniteTransform(name: string, value: number): void {
+  if (!Number.isFinite(value)) {
+    throw new RangeError(
+      `draw.withTransform: ${name} must be a finite number.`,
+    );
   }
 }
 
