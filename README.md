@@ -57,6 +57,7 @@ examples/images.html
 examples/lifecycle.html
 examples/offscreen.html
 examples/reduced-motion.html
+examples/showcase.html
 ```
 
 サンプルは `../dist/index.js` を import します。`src/` を変更した後は `npm run build` を実行してください。
@@ -109,6 +110,16 @@ examples/reduced-motion.html
   - reduce で停止 / 解除で再開
   - 開始時に 1 frame だけ描画
 
+- `examples/showcase.html`
+  - 主要APIをまとめた総合デモ
+  - basic shapes + geometry values + `draw.shape()`
+  - color helpers
+  - emoji
+  - image
+  - `EffectManager`
+  - `withTransform`
+  - `pauseWhenHidden` + `pauseWhenOffscreen` + `respectReducedMotion`
+
 ## 最小サンプル
 
 ```ts
@@ -137,6 +148,8 @@ createCanvasApp("#canvas", ({ draw, size }) => {
 - `pauseWhenHidden` は Web ページが非表示の間だけ Canvas の rAF loop を止めるかどうかです。既定値は `false` です。`hidden` で停止し、`visible` で再開します。再開直後に `deltaTime` が跳ねないように `lastTime` をリセットします。`time` は wall-clock なので pause 中も進みます。`stop()` 後は `visible` になっても再開しません。`destroy()` は `visibilitychange` listener も外します。
 - `pauseWhenOffscreen` は Canvas が viewport 外にある間だけ rAF loop を止めるかどうかです。既定値は `false` です。複数の Canvas 装飾を置くページで、画面外の Canvas が描き続けないようにするための設定です。内部では `IntersectionObserver` を使います。再開時は `lastTime` をリセットするため、`deltaTime` は大きく跳ねません。`stop()` で止めた場合は、viewport に戻っても再開しません。`destroy()` は `IntersectionObserver.disconnect()` も呼びます。`IntersectionObserver` がない環境への fallback はありません。`pauseWhenHidden` と両方 `true` の場合、hidden または offscreen のどちらかなら停止し、visible かつ onscreen のときだけ再開します。
 - `respectReducedMotion` は、ユーザーが OS で「視差効果を減らす」などの `prefers-reduced-motion: reduce` を選んでいる間、rAF loop を進めない設定です。既定値は `false` です。空白の Canvas を避けるため、`start()` 時は 1 frame だけ描画して静止画を残します。アニメーション中に reduce になった場合は最後の frame が残り、解除されると再開します。再開時は `lastTime` をリセットするため、`deltaTime` は跳ねません。`stop()` 後は、解除されても再開しません。`destroy()` は media query の `change` listener も外します。`matchMedia` がない環境への fallback はありません。`pauseWhenHidden` / `pauseWhenOffscreen` と組み合わせた場合、visible かつ onscreen かつ reduce でないときだけ loop が進みます。
+
+frame callback には `{ draw, time, deltaTime, frame, size, input }` が渡されます。`size` は `{ width, height, center }`、`input.mouse` で mouse 状態を読めます。
 
 ```ts
 createCanvasApp("#canvas", frame, {
@@ -395,6 +408,9 @@ draw.image(logo, vec2(400, 150), { scale: 0.5, rotation: deg(15), alpha: 0.8 });
 - `OffscreenCanvas` から通常 Canvas への自動フォールバックはしない
 - 絵文字画像アセット方式へのフォールバックはしない
 - 画像読み込み失敗時の透明プレースホルダーは作らない
+- `prefers-reduced-motion` を取得できない環境で勝手に `false` 扱いしない
+- 未ロード画像を placeholder で描かない
+- 画像読み込み失敗時に代替画像へ差し替えない
 - 複雑なブラウザ互換レイヤーは入れない
 
 代替手段が必要になった場合は、API設計を決めたうえで明示的に追加します。暫定的なフォールバックは TODO に留めます。

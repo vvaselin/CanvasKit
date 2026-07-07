@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>canvaskit showcase example</title>
+    <style>
+      html,
+      body {
+        width: 100%;
+        min-height: 100%;
+        margin: 0;
+      }
+
+      body {
+        overflow: auto;
+        background: #0f1117;
+        color: #ffffff99;
+        font-family: system-ui, sans-serif;
+      }
+
+      canvas {
+        display: block;
+        width: 1200px;
+        height: 760px;
+      }
+
+      .spacer {
+        display: grid;
+        width: 1200px;
+        height: 800px;
+        place-items: start center;
+        padding-top: 48px;
+        box-sizing: border-box;
+        color: #ffffff55;
+        letter-spacing: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+    <div class="spacer">scroll</div>
+
+    <script type="module">
+      import {
+        createCanvasApp,
+        createEffectManager,
+        Palette,
+        rgba,
+        hsl,
+        vec2,
+        rect,
+        circle,
+        line,
+        moved,
+        centerOf,
+        contains,
+        deg,
+        easeOutCubic,
+      } from "../dist/index.js";
+
+      const font = "system-ui, sans-serif";
+      const effects = createEffectManager();
+
+      // 表示用です。ライブラリ内部では respectReducedMotion が loop を止めるので、
+      // reduce 中は最後の 1 frame が静止画として残ります。
+      const reducedQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+      let reduced = reducedQuery.matches;
+      reducedQuery.addEventListener("change", (event) => {
+        reduced = event.matches;
+      });
+
+      // 画像ファイルを追加せず、canvas を source にします。
+      const pattern = document.createElement("canvas");
+      pattern.width = 128;
+      pattern.height = 128;
+      const patternCtx = pattern.getContext("2d");
+      const gradient = patternCtx.createLinearGradient(0, 0, 128, 128);
+      gradient.addColorStop(0, "#50fa7b");
+      gradient.addColorStop(0.5, "#7aa2ff");
+      gradient.addColorStop(1, "#ff79c6");
+      patternCtx.fillStyle = gradient;
+      patternCtx.fillRect(0, 0, 128, 128);
+      for (let y = 0; y < 4; y += 1) {
+        for (let x = 0; x < 4; x += 1) {
+          patternCtx.fillStyle = (x + y) % 2 === 0 ? "rgba(15, 17, 23, 0.38)" : "rgba(255, 255, 255, 0.16)";
+          patternCtx.fillRect(x * 32, y * 32, 32, 32);
+        }
+      }
+      patternCtx.strokeStyle = "rgba(255, 255, 255, 0.76)";
+      patternCtx.lineWidth = 4;
+      patternCtx.strokeRect(10, 10, 108, 108);
+
+      const drawGrid = (draw) => {
+        for (let x = 0; x <= 1200; x += 40) {
+          draw.line(vec2(x, 0), vec2(x, 760), {
+            stroke: rgba(255, 255, 255, x % 160 === 0 ? 0.08 : 0.045),
+            width: 1,
+          });
+        }
+
+        for (let y = 0; y <= 760; y += 40) {
+          draw.line(vec2(0, y), vec2(1200, y), {
+            stroke: rgba(255, 255, 255, y % 160 === 0 ? 0.08 : 0.045),
+            width: 1,
+          });
+        }
+      };
+
+      const app = createCanvasApp("#canvas", (context) => {
+        const { draw, time, deltaTime, frame, size, input } = context;
+        const mouse = input.mouse;
+
+        draw.clear("#0f1117");
+        drawGrid(draw);
+
+        draw.text("CanvasKit showcase", vec2(40, 50), {
+          size: 28,
+          fill: Palette.White,
+          font,
+        });
+
+        draw.text("即時描画の主要 API を 1 画面にまとめたデモです。", vec2(40, 82), {
+          size: 15,
+          fill: "#ffffff99",
+          font,
+        });
+
+        const card = rect(70, 205, 280, 150);
+        const hovered = contains(card, mouse.position);
+        const cardCenter = centerOf(card);
+        draw.roundRect(card, 16, {
+          fill: hovered ? "#263246" : "#171d2a",
+          stroke: hsl((time * 30) % 360, 70, 60),
+          width: 2,
+        });
+        draw.text("geometry card", cardCenter, {
+          size: 22,
+          fill: Palette.White,
+          align: "center",
+          baseline: "middle",
+          font,
+        });
+        draw.text("contains(rect, mouse)", vec2(cardCenter.x, cardCenter.y + 34), {
+          size: 14,
+          fill: "#ffffff88",
+          align: "center",
+          baseline: "middle",
+          font,
+        });
+
+        const hudX = size.width - 250;
+        draw.roundRect(rect(hudX, 28, 210, 118), 12, {
+          fill: rgba(255, 255, 255, 0.055),
+          stroke: rgba(255, 255, 255, 0.16),
+          width: 1,
+        });
+        draw.text(`frame: ${frame}`, vec2(hudX + 18, 58), {
+          size: 14,
+          fill: "#ffffffcc",
+          font,
+        });
+        draw.text(`delta: ${(deltaTime * 1000).toFixed(1)} ms`, vec2(hudX + 18, 82), {
+          size: 14,
+          fill: "#ffffffcc",
+          font,
+        });
+        draw.text(`reduced: ${reduced}`, vec2(hudX + 18, 106), {
+          size: 14,
+          fill: reduced ? Palette.Gold : "#ffffffcc",
+          font,
+        });
+        draw.text(`hover: ${hovered}`, vec2(hudX + 18, 130), {
+          size: 14,
+          fill: hovered ? Palette.Seagreen : "#ffffffcc",
+          font,
+        });
+
+        const baseCircle = circle(vec2(485, 285), 42);
+        const shiftedCircle = moved(baseCircle, vec2(140 + Math.sin(time) * 18, 42));
+        draw.shape(line(baseCircle.center, shiftedCircle.center), {
+          stroke: rgba(255, 255, 255, 0.62),
+          width: 2,
+          dash: [8, 6],
+        });
+        draw.shape(baseCircle, {
+          fill: rgba(122, 162, 255, 0.62),
+          stroke: Palette.White,
+          width: 2,
+        });
+        draw.shape(shiftedCircle, {
+          fill: rgba(80, 250, 123, 0.46),
+          stroke: Palette.Seagreen,
+          width: 3,
+        });
+        draw.text("draw.shape() + moved()", vec2(555, 395), {
+          size: 14,
+          fill: "#ffffff99",
+          align: "center",
+          font,
+        });
+
+        draw.text("hsl() / rgba()", vec2(90, 430), {
+          size: 16,
+          fill: "#ffffffcc",
+          font,
+        });
+        for (let i = 0; i < 12; i += 1) {
+          const hue = i * 30 + time * 20;
+          draw.circle(vec2(100 + i * 34, 472), 14, {
+            fill: hsl(hue, 80, 60),
+            stroke: rgba(255, 255, 255, 0.5),
+            width: 1,
+          });
+        }
+
+        draw.withTransform({
+          translate: vec2(920, 305),
+          rotate: time * 0.6,
+        }, () => {
+          draw.shape(line(vec2(0, 0), vec2(90, 0)), {
+            stroke: rgba(255, 255, 255, 0.45),
+            width: 2,
+            dash: [5, 5],
+          });
+          draw.circle(vec2(0, 0), 52, {
+            stroke: rgba(255, 255, 255, 0.22),
+            width: 1,
+          });
+          draw.emoji("\u{1F680}", vec2(90, 0), {
+            size: 40,
+          });
+          draw.emoji("\u{2728}", vec2(-34, -34), {
+            size: 26,
+            rotation: time,
+            alpha: 0.8,
+          });
+        });
+        draw.text("withTransform + emoji", vec2(920, 420), {
+          size: 14,
+          fill: "#ffffff99",
+          align: "center",
+          font,
+        });
+
+        draw.text("canvas source image", vec2(205, 548), {
+          size: 16,
+          fill: "#ffffffcc",
+          align: "center",
+          font,
+        });
+        draw.image(pattern, vec2(205, 635), {
+          scale: 0.92,
+          rotation: time * 0.42,
+          alpha: 0.9,
+        });
+
+        const wavePoints = [];
+        for (let i = 0; i < 7; i += 1) {
+          wavePoints.push(vec2(760 + i * 46, 570 + Math.sin(time * 2 + i * 0.8) * 24));
+        }
+        draw.polyline(wavePoints, {
+          stroke: hsl((time * 45) % 360, 78, 66),
+          width: 4,
+          lineCap: "round",
+          lineJoin: "round",
+        });
+        draw.polygon([
+          vec2(820, 650),
+          vec2(875, 615),
+          vec2(940, 636),
+          vec2(965, 700),
+          vec2(785, 700),
+        ], {
+          fill: rgba(255, 184, 108, 0.22),
+          stroke: Palette.Orange,
+          width: 2,
+        });
+        draw.arc(vec2(1035, 640), 54, deg(-120), deg(-120) + (Math.sin(time) * 0.5 + 1.2) * Math.PI, {
+          stroke: Palette.Hotpink,
+          width: 6,
+          lineCap: "round",
+        });
+        draw.text("polygon / polyline / arc", vec2(910, 730), {
+          size: 14,
+          fill: "#ffffff99",
+          align: "center",
+          font,
+        });
+
+        if (mouse.left.down) {
+          const pos = { ...mouse.position };
+
+          // EffectManager でクリック位置に短い波紋を追加します。
+          effects.add((t, { draw }) => {
+            const progress = t / 1.0;
+            if (progress >= 1) {
+              return false;
+            }
+
+            const eased = easeOutCubic(progress);
+            draw.circle(pos, 18 + eased * 104, {
+              stroke: Palette.White,
+              width: 3,
+              alpha: 1 - progress,
+            });
+
+            return true;
+          });
+        }
+
+        draw.text(
+          "pauseWhenHidden / pauseWhenOffscreen / respectReducedMotion はすべて on: tab を隠す、scroll で画面外に出す、OS の「動きを減らす」のいずれかで loop が止まります。",
+          vec2(size.center.x, 748),
+          {
+            size: 13,
+            fill: "#ffffff80",
+            align: "center",
+            font,
+          },
+        );
+
+        effects.update(deltaTime, context);
+      }, {
+        autoStart: true,
+        maxDpr: 2,
+        pauseWhenHidden: true,
+        pauseWhenOffscreen: true,
+        respectReducedMotion: true,
+      });
+
+      window.addEventListener("pagehide", () => app.destroy(), { once: true });
+    </script>
+  </body>
+</html>
