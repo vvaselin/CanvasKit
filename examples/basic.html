@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>canvaskit basic example</title>
+    <style>
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+      }
+
+      body {
+        overflow: hidden;
+        background: #0f1117;
+      }
+
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+
+    <script type="module">
+      import {
+        createCanvasApp,
+        Palette,
+        deg,
+        lerp,
+        pingPong,
+        easeOutCubic,
+      } from "../dist/index.js";
+
+      const canvas = document.querySelector("#canvas");
+
+      if (!(canvas instanceof HTMLCanvasElement)) {
+        throw new Error("basic example: canvas element was not found.");
+      }
+
+      const ripples = [];
+      let wasPressed = false;
+
+      const app = createCanvasApp(canvas, ({ draw, time, deltaTime, size, input }) => {
+        draw.clear("#0f1117");
+
+        const mouse = input.mouse;
+
+        if (mouse.left.down && !wasPressed) {
+          ripples.push({
+            x: mouse.position.x,
+            y: mouse.position.y,
+            age: 0,
+          });
+        }
+
+        wasPressed = mouse.left.pressed;
+
+        const t = pingPong(time * 0.5, 1);
+        const x = lerp(80, Math.max(80, size.width - 80), t);
+        const y = size.center.y;
+
+        draw.line(
+          { x: 80, y },
+          { x, y },
+          {
+            stroke: "#ffffff33",
+            width: 2,
+            lineCap: "round",
+          },
+        );
+
+        draw.rect(
+          { x: 32, y: 32, w: 180, h: 72 },
+          {
+            fill: "#1d2433",
+            stroke: "#ffffff22",
+            width: 1,
+          },
+        );
+
+        draw.roundRect(
+          { x: size.width - 184, y: 32, w: 152, h: 72 },
+          14,
+          {
+            fill: "#18251f",
+            stroke: Palette.Seagreen,
+            width: 2,
+          },
+        );
+
+        draw.circle({ x, y }, 32, {
+          fill: Palette.Skyblue,
+        });
+
+        draw.text("CanvasKit basic", { x: 48, y: 76 }, {
+          size: 20,
+          fill: Palette.White,
+          font: "system-ui, sans-serif",
+        });
+
+        draw.text(
+          `mouse: ${mouse.position.x.toFixed(0)}, ${mouse.position.y.toFixed(0)}`,
+          { x: 48, y: size.height - 36 },
+          {
+            size: 16,
+            fill: "#ffffffaa",
+            font: "system-ui, sans-serif",
+          },
+        );
+
+        draw.emoji("🌙", { x, y: y - 72 }, {
+          size: 64,
+          rotation: deg(Math.sin(time) * 10),
+        });
+
+        draw.emoji("✨", { x: size.center.x, y: 92 }, {
+          size: 42,
+          rotation: time * 0.6,
+          scale: 1 + Math.sin(time * 2) * 0.08,
+        });
+
+        for (let i = ripples.length - 1; i >= 0; i -= 1) {
+          const ripple = ripples[i];
+          ripple.age += deltaTime;
+
+          const progress = ripple.age / 0.8;
+
+          if (progress >= 1) {
+            ripples.splice(i, 1);
+            continue;
+          }
+
+          const eased = easeOutCubic(progress);
+
+          draw.circle(
+            { x: ripple.x, y: ripple.y },
+            eased * 96,
+            {
+              stroke: Palette.White,
+              width: 2,
+              alpha: 1 - progress,
+            },
+          );
+        }
+      });
+
+      app.start();
+      window.addEventListener("pagehide", () => app.destroy(), { once: true });
+    </script>
+  </body>
+</html>
