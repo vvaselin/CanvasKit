@@ -90,6 +90,7 @@ examples/showcase.html
 
 - `examples/colors.html`
   - `rgb()` / `rgba()` / `hsl()` / `hsla()`
+  - `Color`
   - hue animation
   - Palette 色見本
 
@@ -382,7 +383,7 @@ draw.text("CanvasKit\nmultiline text", vec2(80, 80), {
 
 `rgb()` / `rgba()` / `hsl()` / `hsla()` は CSS color string を返します。`fill` / `stroke` / `draw.clear()` など、色文字列を受け取る場所でそのまま使えます。出力は `rgb(255 128 0)` や `hsl(210 80% 60%)` のような modern space-separated syntax です。
 
-範囲は `r/g/b: 0..255`、`s/l: 0..100`、`a: 0..1` です。`h` は有限の角度なら任意の値を渡せます。範囲外や `NaN` / `Infinity` は `RangeError` です。勝手に clamp しません。Color class はまだありません。
+範囲は `r/g/b: 0..255`、`s/l: 0..100`、`a: 0..1` です。`h` は有限の角度なら任意の値を渡せます。範囲外や `NaN` / `Infinity` は `RangeError` です。勝手に clamp しません。
 
 ```ts
 draw.circle(pos, 32, {
@@ -391,6 +392,37 @@ draw.circle(pos, 32, {
   width: 2,
 });
 ```
+
+## Color Class
+
+`Color` は CSS color string を作るための軽量な値オブジェクトです。`Color.rgb()` / `Color.rgba()` / `Color.hsl()` / `Color.hsla()` で作成し、`withAlpha()` で alpha だけを変え、`Color.lerp()` で 2 色を補間できます。
+
+`ShapeStyle.fill` / `stroke` は今のところ `string` のままです。`Color` を直接渡すのではなく、`.toString()` で CSS color string にして渡します。`toString()` は `rgb(r g b / a)` の modern CSS syntax を返します。
+
+```ts
+const c1 = Color.rgb(120, 160, 255);
+const c2 = c1.withAlpha(0.4);
+
+draw.circle(pos, 40, {
+  fill: c1.toString(),
+  stroke: c2.toString(),
+  width: 2,
+});
+
+const mixed = Color.lerp(
+  Color.rgb(255, 120, 80),
+  Color.rgb(80, 160, 255),
+  t,
+);
+
+draw.rect(card, {
+  fill: mixed.toString(),
+});
+```
+
+`rgb()` / `rgba()` / `hsl()` / `hsla()` は、その場で CSS color string が欲しいときの小さな helper です。`Color` は色を値として保持し、alpha変更や補間をしたいときに使います。
+
+任意の CSS color string parse、CSS named color parse、hex parse は未対応です。`Color` も入力値を勝手に clamp せず、範囲外や `NaN` / `Infinity` は `RangeError` を投げます。
 
 ## Transform
 
@@ -537,10 +569,18 @@ draw.image(logo, vec2(400, 150), { scale: 0.5, rotation: deg(15), alpha: 0.8 });
 - `createRenderTarget()`
 - `createCamera2D()`
 - `Palette`
+- `Color`
 - `rgb()`
 - `rgba()`
 - `hsl()`
 - `hsla()`
+- `Color.rgb()`
+- `Color.rgba()`
+- `Color.hsl()`
+- `Color.hsla()`
+- `Color.lerp()`
+- `color.withAlpha()`
+- `color.toString()`
 - `loadImage()`
 - `vec2()`
 - `rect()`
@@ -643,7 +683,4 @@ style object では次の properties を使えます。
 - draw.withState() (RenderState2D)
 - RenderTarget (createRenderTarget)
 - Camera2D
-
-### v0.4 candidate
-
 - Color class

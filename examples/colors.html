@@ -20,7 +20,7 @@
       canvas {
         display: block;
         width: 1200px;
-        height: 760px;
+        height: 900px;
       }
     </style>
   </head>
@@ -31,6 +31,7 @@
       import {
         createCanvasApp,
         Palette,
+        Color,
         rgb,
         rgba,
         hsl,
@@ -61,7 +62,7 @@
       createCanvasApp("#canvas", ({ draw, time, size }) => {
         draw.clear("#0f1117");
 
-        draw.text("color API: rgb() / rgba() / hsl() / hsla() + Palette", vec2(40, 48), {
+        draw.text("color API: rgb() / rgba() / hsl() / hsla() + Color + Palette", vec2(40, 48), {
           size: 24,
           fill: Palette.White,
           font: "system-ui, sans-serif",
@@ -145,7 +146,36 @@
           });
         }
 
-        draw.text("Palette swatches", vec2(80, 554), {
+        draw.text("Color class: Color.lerp() + withAlpha()", vec2(80, 554), {
+          size: 16,
+          fill: "#ffffffcc",
+          font: "system-ui, sans-serif",
+        });
+
+        const colorA = Color.rgb(255, 120, 80);
+        const colorB = Color.rgb(80, 160, 255);
+        const animatedT = Math.sin(time) * 0.5 + 0.5;
+        const mixed = Color.lerp(colorA, colorB, animatedT);
+        const translucent = mixed.withAlpha(0.38);
+
+        draw.roundRect(rect(80, 584, 360, 74), 14, {
+          fill: translucent.toString(),
+          stroke: mixed.toString(),
+          width: 3,
+        });
+        draw.circle(vec2(520, 621), 38, {
+          fill: mixed.toString(),
+          stroke: mixed.withAlpha(0.45).toString(),
+          width: 10,
+        });
+        draw.text("fill / stroke には Color.toString() して渡します。", vec2(620, 622), {
+          size: 14,
+          fill: "#ffffff99",
+          baseline: "middle",
+          font: "system-ui, sans-serif",
+        });
+
+        draw.text("Palette swatches", vec2(80, 704), {
           size: 16,
           fill: "#ffffffcc",
           font: "system-ui, sans-serif",
@@ -156,7 +186,7 @@
           const col = index % 4;
           const row = Math.floor(index / 4);
           const x = 80 + col * 260;
-          const y = 584 + row * 40;
+          const y = 725 + row * 40;
 
           draw.roundRect(rect(x, y, 34, 24), 6, {
             fill: color,
@@ -172,7 +202,7 @@
           });
         });
 
-        draw.text("clamp しない設計です。入力ミスは RangeError として早めに見つけます。", vec2(size.center.x, 750), {
+        draw.text("clamp しない設計です。入力ミスは RangeError として早めに見つけます。", vec2(size.center.x, 890), {
           size: 14,
           fill: "#ffffff80",
           align: "center",
