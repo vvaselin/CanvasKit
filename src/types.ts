@@ -38,6 +38,7 @@ export type ShapeStyle = {
 
 export type TextStyle = {
   size?: number;
+  lineHeight?: number;
   font?: string;
   fill?: string;
   align?: CanvasTextAlign;

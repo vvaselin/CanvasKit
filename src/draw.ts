@@ -337,7 +337,15 @@ export class CanvasDrawContext implements DrawContext {
     const { ctx } = this;
     const normalized = normalizeTextStyle(style);
     const size = normalized.size ?? 16;
+    const lineHeight = normalized.lineHeight ?? 1.2;
     const font = normalized.font ?? defaultTextFont;
+    const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+
+    if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+      throw new RangeError(
+        "draw.text: lineHeight must be a finite number greater than 0.",
+      );
+    }
 
     ctx.save();
     ctx.globalAlpha = ctx.globalAlpha * (normalized.alpha ?? 1);
@@ -345,7 +353,11 @@ export class CanvasDrawContext implements DrawContext {
     ctx.font = `${size}px ${font}`;
     ctx.textAlign = normalized.align ?? "start";
     ctx.textBaseline = normalized.baseline ?? "alphabetic";
-    ctx.fillText(text, pos.x, pos.y);
+
+    for (let i = 0; i < lines.length; i += 1) {
+      ctx.fillText(lines[i]!, pos.x, pos.y + i * size * lineHeight);
+    }
+
     ctx.restore();
   }
 

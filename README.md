@@ -356,6 +356,21 @@ draw.circle(pos, 32, Palette.White);
 
 `fill, stroke, width` を位置引数で並べるような、意味が分かりづらい可変長引数APIは用意しません。
 
+## テキスト描画
+
+`draw.text(text, pos, style?)` は Canvas 2D の `fillText()` で文字列を描画します。`text` に `\n` が含まれる場合は複数行として描画します。`\r\n` と `\r` も改行として扱いますが、HTML として解釈しないため `<br>` は改行になりません。自動折り返しは未対応です。
+
+`TextStyle.lineHeight` で行間を指定できます。既定値は `1.2` で、実際の行間は `size * lineHeight` です。`lineHeight` に有限の正の数以外を渡すと `RangeError` を投げます。
+
+```ts
+draw.text("CanvasKit\nmultiline text", vec2(80, 80), {
+  size: 24,
+  lineHeight: 1.3,
+  fill: Palette.White,
+  font: "system-ui, sans-serif",
+});
+```
+
 ## 色
 
 `rgb()` / `rgba()` / `hsl()` / `hsla()` は CSS color string を返します。`fill` / `stroke` / `draw.clear()` など、色文字列を受け取る場所でそのまま使えます。出力は `rgb(255 128 0)` や `hsl(210 80% 60%)` のような modern space-separated syntax です。
@@ -510,7 +525,7 @@ draw.image(logo, vec2(400, 150), { scale: 0.5, rotation: deg(15), alpha: 0.8 });
 - `easeOutCubic()`
 - `easeInOutCubic()`
 
-style object では次の `ShapeStyle` properties を使えます。
+style object では次の properties を使えます。
 
 - `ShapeStyle.fill`
 - `ShapeStyle.stroke`
@@ -519,6 +534,13 @@ style object では次の `ShapeStyle` properties を使えます。
 - `ShapeStyle.lineCap`
 - `ShapeStyle.lineJoin`
 - `ShapeStyle.dash`
+- `TextStyle.size`
+- `TextStyle.lineHeight`
+- `TextStyle.font`
+- `TextStyle.fill`
+- `TextStyle.align`
+- `TextStyle.baseline`
+- `TextStyle.alpha`
 
 描画メソッドは、frame callback に渡される `draw` オブジェクトから使います。
 
