@@ -8,6 +8,7 @@ export type CanvasAppOptions = {
   clearEachFrame?: boolean;
   pauseWhenHidden?: boolean;
   pauseWhenOffscreen?: boolean;
+  respectReducedMotion?: boolean;
 };
 
 export type CanvasApp = {
@@ -42,6 +43,7 @@ export function createCanvasApp(
   const clearEachFrame = options.clearEachFrame ?? false;
   const pauseWhenHidden = options.pauseWhenHidden ?? false;
   const pauseWhenOffscreen = options.pauseWhenOffscreen ?? false;
+  const respectReducedMotion = options.respectReducedMotion ?? false;
   const draw = new CanvasDrawContext(ctx);
   const mouse = new MouseInput(canvas);
 
@@ -50,7 +52,9 @@ export function createCanvasApp(
   let running = false;
   let pausedByVisibility = false;
   let pausedByIntersection = false;
+  let pausedByMotionPreference = false;
   let intersectionObserver: IntersectionObserver | null = null;
+  let reducedMotionQuery: MediaQueryList | null = null;
   let destroyed = false;
   let startTimeMs = 0;
   let lastTimeMs = 0;
@@ -100,6 +104,13 @@ export function createCanvasApp(
 
     mouse.resetFrameState();
     frameIndex += 1;
+
+    // reduce 中は静止画として1フレームだけ残し、ループは進めません。
+    if (pausedByMotionPreference) {
+      animationFrameId = null;
+      return;
+    }
+
     animationFrameId = requestAnimationFrame(tick);
   };
 
@@ -110,10 +121,15 @@ export function createCanvasApp(
     }
   };
 
-  // rAF は running かつ visible かつ onscreen のときだけ進みます。
+  // rAF は running かつ visible かつ onscreen かつ reduce でないときだけ進みます。
   // stop() 済みの場合は running が false なので、条件が揃っても再開しません。
   const resumeLoopIfReady = (): void => {
-    if (!running || pausedByVisibility || pausedByIntersection) {
+    if (
+      !running ||
+      pausedByVisibility ||
+      pausedByIntersection ||
+      pausedByMotionPreference
+    ) {
       return;
     }
 
@@ -156,6 +172,21 @@ export function createCanvasApp(
     resumeLoopIfReady();
   };
 
+  const handleReducedMotionChange = (): void => {
+    if (reducedMotionQuery === null) {
+      return;
+    }
+
+    if (reducedMotionQuery.matches) {
+      pausedByMotionPreference = true;
+      pauseLoop();
+      return;
+    }
+
+    pausedByMotionPreference = false;
+    resumeLoopIfReady();
+  };
+
   const start = (): void => {
     if (destroyed) {
       throw new Error("createCanvasApp: cannot start a destroyed app.");
@@ -172,6 +203,7 @@ export function createCanvasApp(
     frameIndex = 0;
 
     // hidden / offscreen による一時停止中は、その状態が解けたときに再開します。
+    // reduce 中は tick 側の判定で1フレームだけ描画されます(空白キャンバスを防ぐため)。
     if (!pausedByVisibility && !pausedByIntersection) {
       animationFrameId = requestAnimationFrame(tick);
     }
@@ -199,6 +231,14 @@ export function createCanvasApp(
       intersectionObserver = null;
     }
 
+    if (reducedMotionQuery !== null) {
+      reducedMotionQuery.removeEventListener(
+        "change",
+        handleReducedMotionChange,
+      );
+      reducedMotionQuery = null;
+    }
+
     mouse.destroy();
     destroyed = true;
   };
@@ -213,6 +253,12 @@ export function createCanvasApp(
   if (pauseWhenOffscreen) {
     intersectionObserver = new IntersectionObserver(handleIntersectionChange);
     intersectionObserver.observe(canvas);
+  }
+
+  if (respectReducedMotion) {
+    reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    pausedByMotionPreference = reducedMotionQuery.matches;
+    reducedMotionQuery.addEventListener("change", handleReducedMotionChange);
   }
 
   if (autoStart) {

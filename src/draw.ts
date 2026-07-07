@@ -1,6 +1,7 @@
 import type {
   DrawContext,
   EmojiStyle,
+  ImageStyle,
   Rect,
   Shape,
   ShapeStyle,
@@ -287,6 +288,30 @@ export class CanvasDrawContext implements DrawContext {
     ctx.restore();
   }
 
+  image(image: CanvasImageSource, pos: Vec2, style: ImageStyle = {}): void {
+    const { ctx } = this;
+    const natural = getImageSize(image);
+    const width = style.width ?? natural.width;
+    const height = style.height ?? natural.height;
+    const scale = style.scale ?? 1;
+    const rotation = style.rotation ?? 0;
+
+    assertPositiveFinite("width", width);
+    assertPositiveFinite("height", height);
+    assertFiniteImageValue("scale", scale);
+    assertFiniteImageValue("rotation", rotation);
+
+    const scaleX = style.mirrored === true ? -scale : scale;
+
+    ctx.save();
+    ctx.globalAlpha = style.alpha ?? 1;
+    ctx.translate(pos.x, pos.y);
+    ctx.rotate(rotation);
+    ctx.scale(scaleX, scale);
+    ctx.drawImage(image, -width / 2, -height / 2, width, height);
+    ctx.restore();
+  }
+
   private applyShapeStyle(style?: ShapeStyle | string): void {
     const { ctx } = this;
     const normalized = normalizeShapeStyle(style);
@@ -355,6 +380,83 @@ export class CanvasDrawContext implements DrawContext {
     if (hasStroke) {
       ctx.stroke();
     }
+  }
+}
+
+// 未ロード画像やサイズ0のsourceは、Canvas 2D では黙って何も描かれません。
+// 暗黙の失敗を避けるため、ここで明示的に検証して throw します。
+function getImageSize(source: CanvasImageSource): {
+  width: number;
+  height: number;
+} {
+  if (
+    typeof HTMLImageElement !== "undefined" &&
+    source instanceof HTMLImageElement
+  ) {
+    if (!source.complete || source.naturalWidth === 0) {
+      throw new Error(
+        "draw.image: image is not loaded yet. Use loadImage() or wait for the load event.",
+      );
+    }
+
+    return { width: source.naturalWidth, height: source.naturalHeight };
+  }
+
+  if (
+    typeof HTMLCanvasElement !== "undefined" &&
+    source instanceof HTMLCanvasElement
+  ) {
+    if (source.width === 0 || source.height === 0) {
+      throw new Error("draw.image: canvas source has zero size.");
+    }
+
+    return { width: source.width, height: source.height };
+  }
+
+  if (typeof ImageBitmap !== "undefined" && source instanceof ImageBitmap) {
+    if (source.width === 0 || source.height === 0) {
+      throw new Error("draw.image: ImageBitmap source has zero size.");
+    }
+
+    return { width: source.width, height: source.height };
+  }
+
+  if (
+    typeof HTMLVideoElement !== "undefined" &&
+    source instanceof HTMLVideoElement
+  ) {
+    if (source.videoWidth === 0 || source.videoHeight === 0) {
+      throw new Error("draw.image: video source is not ready yet.");
+    }
+
+    return { width: source.videoWidth, height: source.videoHeight };
+  }
+
+  if (
+    typeof OffscreenCanvas !== "undefined" &&
+    source instanceof OffscreenCanvas
+  ) {
+    if (source.width === 0 || source.height === 0) {
+      throw new Error("draw.image: OffscreenCanvas source has zero size.");
+    }
+
+    return { width: source.width, height: source.height };
+  }
+
+  throw new Error("draw.image: unsupported image source.");
+}
+
+function assertPositiveFinite(name: string, value: number): void {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new RangeError(
+      `draw.image: ${name} must be a finite number greater than 0.`,
+    );
+  }
+}
+
+function assertFiniteImageValue(name: string, value: number): void {
+  if (!Number.isFinite(value)) {
+    throw new RangeError(`draw.image: ${name} must be a finite number.`);
   }
 }
 

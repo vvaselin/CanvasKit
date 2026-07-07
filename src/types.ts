@@ -34,6 +34,15 @@ export type TextStyle = {
   alpha?: number;
 };
 
+export type ImageStyle = {
+  width?: number;
+  height?: number;
+  scale?: number;
+  rotation?: number;
+  mirrored?: boolean;
+  alpha?: number;
+};
+
 export type EmojiStyle = {
   size?: number;
   font?: string;
@@ -74,6 +83,7 @@ export type DrawContext = {
   ): void;
   text(text: string, pos: Vec2, style?: TextStyle | string): void;
   emoji(emoji: string, pos: Vec2, style?: EmojiStyle): void;
+  image(image: CanvasImageSource, pos: Vec2, style?: ImageStyle): void;
 };
 
 export type CanvasFrameContext = {

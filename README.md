@@ -53,8 +53,10 @@ examples/geometry.html
 examples/shapes.html
 examples/colors.html
 examples/transform.html
+examples/images.html
 examples/lifecycle.html
 examples/offscreen.html
+examples/reduced-motion.html
 ```
 
 サンプルは `../dist/index.js` を import します。`src/` を変更した後は `npm run build` を実行してください。
@@ -87,6 +89,11 @@ examples/offscreen.html
   - rotate / scale animation
   - 入れ子 transform
 
+- `examples/images.html`
+  - `draw.image()` / `loadImage()`
+  - scale / rotation / mirrored / alpha
+  - canvas を source にした描画
+
 - `examples/lifecycle.html`
   - `pauseWhenHidden: true`
   - frame count / deltaTime readout
@@ -96,6 +103,11 @@ examples/offscreen.html
   - `pauseWhenOffscreen: true`
   - scroll で pause / resume
   - fixed HUD
+
+- `examples/reduced-motion.html`
+  - `respectReducedMotion: true`
+  - reduce で停止 / 解除で再開
+  - 開始時に 1 frame だけ描画
 
 ## 最小サンプル
 
@@ -124,12 +136,14 @@ createCanvasApp("#canvas", ({ draw, size }) => {
 - `clearEachFrame` は毎フレーム自動で clear するかどうかです。既定値は `false` です。
 - `pauseWhenHidden` は Web ページが非表示の間だけ Canvas の rAF loop を止めるかどうかです。既定値は `false` です。`hidden` で停止し、`visible` で再開します。再開直後に `deltaTime` が跳ねないように `lastTime` をリセットします。`time` は wall-clock なので pause 中も進みます。`stop()` 後は `visible` になっても再開しません。`destroy()` は `visibilitychange` listener も外します。
 - `pauseWhenOffscreen` は Canvas が viewport 外にある間だけ rAF loop を止めるかどうかです。既定値は `false` です。複数の Canvas 装飾を置くページで、画面外の Canvas が描き続けないようにするための設定です。内部では `IntersectionObserver` を使います。再開時は `lastTime` をリセットするため、`deltaTime` は大きく跳ねません。`stop()` で止めた場合は、viewport に戻っても再開しません。`destroy()` は `IntersectionObserver.disconnect()` も呼びます。`IntersectionObserver` がない環境への fallback はありません。`pauseWhenHidden` と両方 `true` の場合、hidden または offscreen のどちらかなら停止し、visible かつ onscreen のときだけ再開します。
+- `respectReducedMotion` は、ユーザーが OS で「視差効果を減らす」などの `prefers-reduced-motion: reduce` を選んでいる間、rAF loop を進めない設定です。既定値は `false` です。空白の Canvas を避けるため、`start()` 時は 1 frame だけ描画して静止画を残します。アニメーション中に reduce になった場合は最後の frame が残り、解除されると再開します。再開時は `lastTime` をリセットするため、`deltaTime` は跳ねません。`stop()` 後は、解除されても再開しません。`destroy()` は media query の `change` listener も外します。`matchMedia` がない環境への fallback はありません。`pauseWhenHidden` / `pauseWhenOffscreen` と組み合わせた場合、visible かつ onscreen かつ reduce でないときだけ loop が進みます。
 
 ```ts
 createCanvasApp("#canvas", frame, {
   autoStart: true,
   pauseWhenHidden: true,
   pauseWhenOffscreen: true,
+  respectReducedMotion: true,
 });
 ```
 
@@ -354,6 +368,22 @@ draw.withTransform({
 
 絵文字の見た目は、ブラウザ、OS、インストールされている絵文字フォントに依存します。CanvasKit は絵文字画像アセットを読み込まず、独自に絵文字をラスタライズせず、絵文字フォントがない場合に代替図形を描くこともしません。
 
+## 画像描画
+
+`draw.image(image, pos, style?)` は CanvasImageSource、つまり img / canvas / ImageBitmap / video / OffscreenCanvas を描きます。`pos` は中心基準で、`draw.emoji()` と同じです。
+
+style は `{ width?, height?, scale?, rotation?, mirrored?, alpha? }` です。`width` / `height` 省略時は元サイズを使います。`scale` は倍率、`rotation` はラジアンです。
+
+未ロードの `HTMLImageElement` は Canvas 2D では黙って何も描かれないため、CanvasKit は throw します。暗黙の fallback を入れない方針です。size 0 や未対応 source も throw します。
+
+`loadImage(src)` は `Promise<HTMLImageElement>` を返します。読み込み失敗は reject します。cache / retry / placeholder はありません。
+
+```ts
+const logo = await loadImage("./logo.png");
+draw.image(logo, vec2(200, 150));
+draw.image(logo, vec2(400, 150), { scale: 0.5, rotation: deg(15), alpha: 0.8 });
+```
+
 ## フォールバック方針
 
 この段階では、フォールバックを意図的に入れていません。
@@ -378,6 +408,7 @@ draw.withTransform({
 - `rgba()`
 - `hsl()`
 - `hsla()`
+- `loadImage()`
 - `vec2()`
 - `rect()`
 - `circle()`
@@ -428,6 +459,7 @@ style object では次の `ShapeStyle` properties を使えます。
 - `draw.arc(pos, radius, startAngle, endAngle, style?)`
 - `draw.text(text, pos, style?)`
 - `draw.emoji(emoji, pos, style?)`
+- `draw.image(image, pos, style?)`
 
 ## ロードマップ
 
@@ -461,11 +493,8 @@ style object では次の `ShapeStyle` properties を使えます。
 - withTransform
 - pauseWhenHidden
 - pauseWhenOffscreen
-
-### v0.3 candidate
-
-- draw.image
 - respectReducedMotion
+- draw.image
 
 ### v0.4 candidate
 

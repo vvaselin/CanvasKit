@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>canvaskit reduced motion example</title>
+    <style>
+      html,
+      body {
+        width: 100%;
+        min-height: 100%;
+        margin: 0;
+      }
+
+      body {
+        overflow: auto;
+        background: #0f1117;
+        color: #ffffffcc;
+        font-family: system-ui, sans-serif;
+      }
+
+      main {
+        padding: 24px;
+      }
+
+      h1 {
+        margin: 0 0 14px;
+        color: #fff;
+        font-size: 22px;
+        font-weight: 700;
+      }
+
+      canvas {
+        display: block;
+        width: 900px;
+        height: 520px;
+      }
+
+      .controls {
+        display: flex;
+        gap: 8px;
+        margin-top: 14px;
+      }
+
+      button {
+        border: 1px solid #ffffff33;
+        border-radius: 6px;
+        padding: 8px 14px;
+        background: #171d2a;
+        color: #fff;
+        font: inherit;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background: #20283a;
+      }
+
+      p,
+      .status {
+        max-width: 900px;
+        margin: 12px 0 0;
+        color: #ffffff99;
+        line-height: 1.7;
+      }
+
+      .status {
+        color: #ffffffcc;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>reduced motion example</h1>
+      <canvas id="canvas"></canvas>
+
+      <div class="controls">
+        <button id="stop" type="button">stop()</button>
+        <button id="start" type="button">start()</button>
+      </div>
+
+      <div id="status" class="status"></div>
+
+      <p>
+        OS の「視覚効果を減らす」設定で確認できます。Windows では設定 &gt; アクセシビリティ &gt; 視覚効果、
+        macOS ではシステム設定 &gt; アクセシビリティ &gt; ディスプレイ、または Chrome DevTools の
+        Rendering &gt; "Emulate CSS media feature prefers-reduced-motion" で切り替えられます。reduce にすると
+        frame count が止まり、最後の 1 frame が静止画として残ります。戻すと再開します。
+      </p>
+    </main>
+
+    <script type="module">
+      import {
+        createCanvasApp,
+        Palette,
+        vec2,
+        rect,
+        circle,
+        line,
+        rgba,
+      } from "../dist/index.js";
+
+      const font = "system-ui, sans-serif";
+      const status = document.querySelector("#status");
+      let angle = 0;
+      let reduced = false;
+
+      // ライブラリ内部の状態を読むものではなく、ページ側の表示用です。
+      const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+      const updateStatus = () => {
+        reduced = mql.matches;
+        status.textContent = `prefers-reduced-motion: ${reduced ? "reduce" : "no-preference"}`;
+      };
+
+      updateStatus();
+      mql.addEventListener("change", updateStatus);
+
+      const app = createCanvasApp("#canvas", ({ draw, frame, time, deltaTime, size }) => {
+        angle += deltaTime * 1.5;
+
+        draw.clear("#0f1117");
+
+        draw.text("respectReducedMotion: true", vec2(40, 46), {
+          size: 24,
+          fill: Palette.White,
+          font,
+        });
+
+        draw.text("frame", vec2(64, 110), {
+          size: 16,
+          fill: "#ffffff99",
+          font,
+        });
+        draw.text(String(frame), vec2(64, 150), {
+          size: 36,
+          fill: Palette.White,
+          font,
+        });
+
+        draw.text("time", vec2(260, 110), {
+          size: 16,
+          fill: "#ffffff99",
+          font,
+        });
+        draw.text(time.toFixed(2), vec2(260, 150), {
+          size: 36,
+          fill: Palette.White,
+          font,
+        });
+
+        draw.text("deltaTime ms", vec2(456, 110), {
+          size: 16,
+          fill: "#ffffff99",
+          font,
+        });
+        draw.text((deltaTime * 1000).toFixed(1), vec2(456, 150), {
+          size: 36,
+          fill: Palette.White,
+          font,
+        });
+
+        draw.text("reduced", vec2(682, 110), {
+          size: 16,
+          fill: "#ffffff99",
+          font,
+        });
+        draw.text(String(reduced), vec2(682, 150), {
+          size: 36,
+          fill: reduced ? Palette.Orange : "#50fa7b",
+          font,
+        });
+
+        draw.text("deltaTime で回る図形", vec2(size.center.x, 250), {
+          size: 16,
+          fill: "#ffffffcc",
+          align: "center",
+          font,
+        });
+
+        draw.shape(circle(vec2(size.center.x, 352), 104), {
+          stroke: rgba(255, 255, 255, 0.18),
+          width: 2,
+        });
+
+        draw.withTransform({
+          translate: vec2(size.center.x, 352),
+          rotate: angle,
+        }, () => {
+          draw.shape(line(vec2(0, 0), vec2(104, 0)), {
+            stroke: "#ffffff88",
+            width: 3,
+            lineCap: "round",
+          });
+          draw.roundRect(rect(-54, -30, 108, 60), 8, {
+            fill: "#263246",
+            stroke: Palette.Skyblue,
+            width: 2,
+          });
+          draw.circle(vec2(104, 0), 16, {
+            fill: Palette.Orange,
+            stroke: Palette.White,
+            width: 2,
+          });
+        });
+
+        draw.text("reduce 中は最後の frame が静止画として残ります。", vec2(size.center.x, 490), {
+          size: 14,
+          fill: "#ffffff80",
+          align: "center",
+          font,
+        });
+      }, {
+        autoStart: true,
+        maxDpr: 2,
+        respectReducedMotion: true,
+      });
+
+      document.querySelector("#stop").onclick = () => app.stop();
+      // reduced 中の start() は、空白を避けるため 1 frame だけ描いて静止します。
+      document.querySelector("#start").onclick = () => app.start();
+    </script>
+  </body>
+</html>

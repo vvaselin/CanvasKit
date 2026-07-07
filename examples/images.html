@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>canvaskit images example</title>
+    <style>
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+      }
+
+      body {
+        overflow: auto;
+        background: #0f1117;
+      }
+
+      canvas {
+        display: block;
+        width: 1200px;
+        height: 760px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+
+    <script type="module">
+      import {
+        createCanvasApp,
+        Palette,
+        vec2,
+        rect,
+        deg,
+        rgba,
+        hsl,
+        loadImage,
+      } from "../dist/index.js";
+
+      const font = "system-ui, sans-serif";
+
+      const svgSource = "data:image/svg+xml," + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+          <rect width="160" height="160" rx="32" fill="#1b2335"/>
+          <circle cx="80" cy="80" r="54" fill="#7aa2ff"/>
+          <path d="M82 30 C105 48 116 80 104 112 L85 96 L64 120 L58 102 L40 96 L64 75 Z" fill="#ffffff"/>
+          <path d="M64 120 L76 103 L93 116 C83 128 72 132 64 120 Z" fill="#ffb86c"/>
+          <circle cx="86" cy="64" r="10" fill="#1b2335"/>
+          <path d="M48 94 C35 100 28 113 26 128 C41 126 55 119 62 106 Z" fill="#50fa7b"/>
+        </svg>
+      `);
+
+      // loadImage は Promise を返します。読み込みに失敗した場合は reject されます。
+      const badge = await loadImage(svgSource);
+
+      const pattern = document.createElement("canvas");
+      pattern.width = 128;
+      pattern.height = 128;
+      const patternCtx = pattern.getContext("2d");
+      const gradient = patternCtx.createLinearGradient(0, 0, 128, 128);
+      gradient.addColorStop(0, "#50fa7b");
+      gradient.addColorStop(1, "#ff79c6");
+      patternCtx.fillStyle = gradient;
+      patternCtx.fillRect(0, 0, 128, 128);
+      for (let y = 0; y < 4; y += 1) {
+        for (let x = 0; x < 4; x += 1) {
+          patternCtx.fillStyle = (x + y) % 2 === 0 ? "rgba(15, 17, 23, 0.35)" : "rgba(255, 255, 255, 0.18)";
+          patternCtx.fillRect(x * 32, y * 32, 32, 32);
+        }
+      }
+      patternCtx.strokeStyle = "rgba(255, 255, 255, 0.75)";
+      patternCtx.lineWidth = 4;
+      patternCtx.strokeRect(10, 10, 108, 108);
+
+      createCanvasApp("#canvas", ({ draw, time, size }) => {
+        const label = (text, pos) => {
+          draw.text(text, pos, {
+            size: 15,
+            fill: "#ffffffcc",
+            align: "center",
+            font,
+          });
+        };
+
+        draw.clear("#0f1117");
+
+        draw.text("draw.image(): HTMLImageElement / canvas source", vec2(40, 48), {
+          size: 24,
+          fill: Palette.White,
+          font,
+        });
+
+        draw.text("pos は画像の中心です。draw.emoji() と同じ基準なので、transform と組み合わせやすくなっています。", vec2(80, 84), {
+          size: 15,
+          fill: "#ffffff99",
+          font,
+        });
+
+        draw.text("natural size", vec2(150, 138), {
+          size: 16,
+          fill: "#ffffffcc",
+          align: "center",
+          font,
+        });
+        // draw.image の pos は、左上ではなく描画される画像の中心です。
+        draw.image(badge, vec2(150, 240));
+
+        draw.text("width / height", vec2(390, 138), {
+          size: 16,
+          fill: "#ffffffcc",
+          align: "center",
+          font,
+        });
+        draw.image(badge, vec2(390, 240), {
+          width: 200,
+          height: 120,
+        });
+
+        draw.text("scale + rotation", vec2(650, 138), {
+          size: 16,
+          fill: "#ffffffcc",
+          align: "center",
+          font,
+        });
+        draw.image(badge, vec2(650, 240), {
+          scale: 1 + Math.sin(time * 2) * 0.2,
+          rotation: time,
+        });
+
+        draw.text("mirrored + alpha", vec2(940, 138), {
+          size: 16,
+          fill: "#ffffffcc",
+          align: "center",
+          font,
+        });
+        draw.image(badge, vec2(885, 240), {
+          scale: 0.75,
+        });
+        draw.image(badge, vec2(995, 240), {
+          scale: 0.75,
+          mirrored: true,
+          alpha: 0.5,
+        });
+        label("normal", vec2(885, 336));
+        label("mirrored", vec2(995, 336));
+
+        draw.text("canvas source", vec2(220, 448), {
+          size: 16,
+          fill: "#ffffffcc",
+          align: "center",
+          font,
+        });
+        // HTMLCanvasElement もそのまま渡せます。ここでは起動時に描いた pattern を使います。
+        draw.image(pattern, vec2(220, 570), {
+          rotation: time * 0.5,
+        });
+
+        draw.text("withTransform group", vec2(610, 448), {
+          size: 16,
+          fill: "#ffffffcc",
+          align: "center",
+          font,
+        });
+        const bob = Math.sin(time * 1.5) * 18;
+        draw.withTransform({
+          translate: vec2(610 + Math.sin(time) * 36, 570 + bob),
+          rotate: Math.sin(time * 0.8) * deg(8),
+        }, () => {
+          draw.image(badge, vec2(0, 0), {
+            scale: 0.72,
+          });
+
+          draw.text("一緒に動く", vec2(0, 92), {
+            size: 18,
+            fill: Palette.White,
+            align: "center",
+            baseline: "middle",
+            font,
+          });
+        });
+
+        draw.text("source size + style", vec2(950, 448), {
+          size: 16,
+          fill: "#ffffffcc",
+          align: "center",
+          font,
+        });
+        draw.rect(rect(850, 504, 200, 120), {
+          fill: rgba(255, 255, 255, 0.06),
+          stroke: rgba(255, 255, 255, 0.22),
+          width: 1,
+        });
+        draw.image(badge, vec2(950, 564), {
+          width: 150,
+          height: 90,
+          rotation: Math.sin(time) * deg(10),
+          alpha: 0.86,
+        });
+        draw.text("rotation は radian", vec2(950, 648), {
+          size: 14,
+          fill: hsl((time * 45) % 360, 80, 70),
+          align: "center",
+          font,
+        });
+
+        draw.text("未ロードの image は throw します。loadImage で待ってから描き、fallback や placeholder はありません。", vec2(size.center.x, 736), {
+          size: 14,
+          fill: "#ffffff80",
+          align: "center",
+          font,
+        });
+      }, {
+        autoStart: true,
+        maxDpr: 2,
+      });
+    </script>
+  </body>
+</html>
