@@ -6,6 +6,7 @@ export type CanvasAppOptions = {
   maxDpr?: number;
   autoStart?: boolean;
   clearEachFrame?: boolean;
+  pauseWhenHidden?: boolean;
 };
 
 export type CanvasApp = {
@@ -38,12 +39,14 @@ export function createCanvasApp(
 
   const autoStart = options.autoStart ?? false;
   const clearEachFrame = options.clearEachFrame ?? false;
+  const pauseWhenHidden = options.pauseWhenHidden ?? false;
   const draw = new CanvasDrawContext(ctx);
   const mouse = new MouseInput(canvas);
 
   let size = getCanvasCssSize(canvas);
   let animationFrameId: number | null = null;
   let running = false;
+  let pausedByVisibility = false;
   let destroyed = false;
   let startTimeMs = 0;
   let lastTimeMs = 0;
@@ -96,6 +99,26 @@ export function createCanvasApp(
     animationFrameId = requestAnimationFrame(tick);
   };
 
+  const handleVisibilityChange = (): void => {
+    if (document.visibilityState === "hidden") {
+      if (running && animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+        pausedByVisibility = true;
+      }
+
+      return;
+    }
+
+    // stop() 済みの場合は running が false なので、visible に戻っても再開しません。
+    if (running && pausedByVisibility) {
+      pausedByVisibility = false;
+      // 一時停止中の経過で deltaTime が巨大にならないようにリセットします。
+      lastTimeMs = performance.now();
+      animationFrameId = requestAnimationFrame(tick);
+    }
+  };
+
   const start = (): void => {
     if (destroyed) {
       throw new Error("createCanvasApp: cannot start a destroyed app.");
@@ -115,6 +138,7 @@ export function createCanvasApp(
 
   const stop = (): void => {
     running = false;
+    pausedByVisibility = false;
 
     if (animationFrameId !== null) {
       cancelAnimationFrame(animationFrameId);
@@ -129,12 +153,21 @@ export function createCanvasApp(
 
     stop();
     window.removeEventListener("resize", resize);
+
+    if (pauseWhenHidden) {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    }
+
     mouse.destroy();
     destroyed = true;
   };
 
   resize();
   window.addEventListener("resize", resize);
+
+  if (pauseWhenHidden) {
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+  }
 
   if (autoStart) {
     start();

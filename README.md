@@ -53,6 +53,7 @@ examples/geometry.html
 examples/shapes.html
 examples/colors.html
 examples/transform.html
+examples/lifecycle.html
 ```
 
 サンプルは `../dist/index.js` を import します。`src/` を変更した後は `npm run build` を実行してください。
@@ -85,6 +86,11 @@ examples/transform.html
   - rotate / scale animation
   - 入れ子 transform
 
+- `examples/lifecycle.html`
+  - `pauseWhenHidden: true`
+  - frame count / deltaTime readout
+  - `stop()` / `start()`
+
 ## 最小サンプル
 
 ```ts
@@ -102,6 +108,20 @@ createCanvasApp("#canvas", ({ draw, size }) => {
 }, {
   autoStart: true,
   maxDpr: 2,
+});
+```
+
+## createCanvasApp options
+
+- `autoStart` は自動で開始するかどうかです。既定値は `false` です。
+- `maxDpr` は Canvas の最大 devicePixelRatio です。
+- `clearEachFrame` は毎フレーム自動で clear するかどうかです。既定値は `false` です。
+- `pauseWhenHidden` は Web ページが非表示の間だけ Canvas の rAF loop を止めるかどうかです。既定値は `false` です。`hidden` で停止し、`visible` で再開します。再開直後に `deltaTime` が跳ねないように `lastTime` をリセットします。`time` は wall-clock なので pause 中も進みます。`stop()` 後は `visible` になっても再開しません。`destroy()` は `visibilitychange` listener も外します。
+
+```ts
+createCanvasApp("#canvas", frame, {
+  autoStart: true,
+  pauseWhenHidden: true,
 });
 ```
 
@@ -431,11 +451,11 @@ style object では次の `ShapeStyle` properties を使えます。
 - Palette拡張
 - rgb() / rgba() / hsl() / hsla()
 - withTransform
+- pauseWhenHidden
 
 ### v0.3 candidate
 
 - draw.image
-- pauseWhenHidden
 - pauseWhenOffscreen
 - respectReducedMotion
 
