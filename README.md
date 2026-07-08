@@ -69,10 +69,11 @@ examples/showcase.html
 
 - `examples/basic.html`
   - `createCanvasApp`
-  - basic shapes
-  - emoji
-  - mouse input
+  - geometry value + `draw.shape()`
+  - `contains()` hover / `hsl()`
+  - emoji / 複数行テキスト
   - `EffectManager` click ripple
+  - `pauseWhenHidden: true`
 
 - `examples/geometry.html`
   - `vec2()` / `centerOf()`

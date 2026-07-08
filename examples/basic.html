@@ -5,23 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>canvaskit basic example</title>
     <style>
-      html,
-      body {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-      }
-
-      body {
-        overflow: hidden;
-        background: #0f1117;
-      }
-
-      canvas {
-        display: block;
-        width: 100vw;
-        height: 100vh;
-      }
+      html, body { width: 100%; height: 100%; margin: 0; }
+      body { overflow: hidden; background: #0f1117; }
+      canvas { display: block; width: 100vw; height: 100vh; }
     </style>
   </head>
   <body>
@@ -32,111 +18,84 @@
         createCanvasApp,
         createEffectManager,
         Palette,
-        deg,
+        hsl,
+        rgba,
+        vec2,
+        rect,
+        circle,
+        contains,
+        centerOf,
+        moved,
         lerp,
         pingPong,
         easeOutCubic,
       } from "../dist/index.js";
 
+      const font = "system-ui, sans-serif";
       const effects = createEffectManager();
+
+      // 図形は kind 付きの geometry value として持ち、draw.shape() でそのまま描けます。
+      const card = rect(32, 32, 220, 84);
 
       const app = createCanvasApp("#canvas", (context) => {
         const { draw, time, deltaTime, size, input } = context;
+        const mouse = input.mouse;
 
         draw.clear("#0f1117");
 
-        const mouse = input.mouse;
-
+        // クリックで短い波紋。true を返す間だけ effect が生き続けます。
         if (mouse.left.down) {
           const pos = { ...mouse.position };
-
           effects.add((t, { draw }) => {
             const progress = t / 0.8;
-
-            if (progress >= 1) {
-              return false;
-            }
-
-            const eased = easeOutCubic(progress);
-
-            draw.circle(pos, eased * 96, {
+            if (progress >= 1) return false;
+            draw.circle(pos, easeOutCubic(progress) * 96, {
               stroke: Palette.White,
               width: 2,
               alpha: 1 - progress,
             });
-
             return true;
           });
         }
 
-        const t = pingPong(time * 0.5, 1);
-        const x = lerp(80, Math.max(80, size.width - 80), t);
-        const y = size.center.y;
-
-        draw.line(
-          { x: 80, y },
-          { x, y },
-          {
-            stroke: "#ffffff33",
-            width: 2,
-            lineCap: "round",
-          },
-        );
-
-        draw.rect(
-          { x: 32, y: 32, w: 180, h: 72 },
-          {
-            fill: "#1d2433",
-            stroke: "#ffffff22",
-            width: 1,
-          },
-        );
-
-        draw.roundRect(
-          { x: size.width - 184, y: 32, w: 152, h: 72 },
-          14,
-          {
-            fill: "#18251f",
-            stroke: Palette.Seagreen,
-            width: 2,
-          },
-        );
-
-        draw.circle({ x, y }, 32, {
-          fill: Palette.Skyblue,
+        // contains() で hover 判定。塗りは hsl() で時間とともに色相を回します。
+        const hovered = contains(card, mouse.position);
+        draw.roundRect(card, 14, {
+          fill: hovered ? "#263246" : "#171d2a",
+          stroke: hsl((time * 40) % 360, 70, 60),
+          width: 2,
         });
-
-        draw.text("CanvasKit basic", { x: 48, y: 76 }, {
+        draw.text("CanvasKit basic", centerOf(card), {
           size: 20,
           fill: Palette.White,
-          font: "system-ui, sans-serif",
+          align: "center",
+          baseline: "middle",
+          font,
         });
 
+        // pingPong + lerp で左右に往復する円。moved() で影用の円も作れます。
+        const t = pingPong(time * 0.5, 1);
+        const ball = circle(vec2(lerp(80, size.width - 80, t), size.center.y), 32);
+        draw.shape(moved(ball, vec2(0, 48)), { fill: rgba(0, 0, 0, 0.35) });
+        draw.shape(ball, { fill: Palette.Skyblue });
+
+        draw.emoji("🌙", vec2(ball.center.x, ball.center.y - 84), {
+          size: 56,
+          rotation: Math.sin(time) * 0.2,
+        });
+
+        // \n と lineHeight で複数行テキストを描けます。
         draw.text(
-          `mouse: ${mouse.position.x.toFixed(0)}, ${mouse.position.y.toFixed(0)}`,
-          { x: 48, y: size.height - 36 },
-          {
-            size: 16,
-            fill: "#ffffffaa",
-            font: "system-ui, sans-serif",
-          },
+          `mouse: ${mouse.position.x.toFixed(0)}, ${mouse.position.y.toFixed(0)}\nhover: ${hovered}\nクリックで波紋`,
+          vec2(48, size.height - 84),
+          { size: 14, lineHeight: 1.4, fill: "#ffffffaa", font },
         );
-
-        draw.emoji("🌙", { x, y: y - 72 }, {
-          size: 64,
-          rotation: deg(Math.sin(time) * 10),
-        });
-
-        draw.emoji("✨", { x: size.center.x, y: 92 }, {
-          size: 42,
-          rotation: time * 0.6,
-          scale: 1 + Math.sin(time * 2) * 0.08,
-        });
 
         effects.update(deltaTime, context);
       }, {
         autoStart: true,
         maxDpr: 2,
+        pauseWhenHidden: true, // タブが非表示の間は描画を止めます
       });
 
       window.addEventListener("pagehide", () => app.destroy(), { once: true });
